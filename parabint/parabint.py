@@ -2629,9 +2629,9 @@ def CheckRampsList(rampslist, vm, am, delta, reframpslist = RampsList(), PRINT=F
         
         if PRINT:
             print "  checking ramp {0}".format(i)
-            print "    velocity constraint           : {0}".format(Colorize(cond1))
-            print "    acceleration constraint       : {0}".format(Colorize(cond2))
-            print "    minimum-switch-time constraint: {0}".format(Colorize(cond3))
+            print "    velocity constraint           : {0}".format(ColorizeStatus(cond1))
+            print "    acceleration constraint       : {0}".format(ColorizeStatus(cond2))
+            print "    minimum-switch-time constraint: {0}".format(ColorizeStatus(cond3))
             
         if not isfeasible:
             return False
@@ -2640,13 +2640,13 @@ def CheckRampsList(rampslist, vm, am, delta, reframpslist = RampsList(), PRINT=F
         cond4 = abs(rampslist.distance - reframpslist.distance) < EPSILON
         isfeasible = isfeasible and cond4
         if PRINT:
-            print "  checking distance with ref. rampslist:: {0}".format(Colorize(cond4))
+            print "  checking distance with ref. rampslist:: {0}".format(ColorizeStatus(cond4))
             
     return isfeasible
 
 
 ##
-def Colorize(status):
+def ColorizeStatus(status):
     if status:
         return "\033[1;32mpassed\033[0m"
     else:
