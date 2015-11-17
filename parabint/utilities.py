@@ -2,7 +2,7 @@ from parabint import *
 import random
 import time
 try:
-    from openravepy import *
+    import openravepy as orpy
     HAS_OPENRAVE = True
 except:
     HAS_OPENRAVE = False
@@ -11,7 +11,7 @@ MAX_REPEAT_SAMPLING = 100
 SHORTCUT_THRESHOLD = 0.001#EPSILON
 
 ## OpenRAVE dependent.
-def ConvertOpenRAVETrajToRampsListND(openravetraj, vmvect, amvect, delta = 0):
+def ConvertOpenRAVETrajToRampsListND(openravetraj, vmvect, amvect, delta=0):
     configspec = openravetraj.GetConfigurationSpecification()
     configdof = configspec.GetDOF()
 
@@ -47,7 +47,7 @@ def ConvertOpenRAVETrajToRampsListND(openravetraj, vmvect, amvect, delta = 0):
 
 
 ##
-def ConvertWaypointsToRampsListND(waypointslist, vmvect, amvect, delta = 0):
+def ConvertWaypointsToRampsListND(waypointslist, vmvect, amvect, delta=0):
     ## merge collinear waypoints
     W = MergeWaypoints(waypointslist)
     nwaypoints = len(W)
@@ -160,23 +160,26 @@ def ReplaceRampsListNDSegment(originalrampslistnd, newsegment, t0, t1):
 
 
 ##
-def Shortcut(rampslistnd, vmvect, amvect, delta, shortcutiter, PRINT=True, robot=None):
-    random_number_generator = random.SystemRandom()
+def Shortcut(rampslistnd, vmvect, amvect, delta, shortcutiter, PRINT=True, robot=None,
+             ret_data=False):
+    rng = random.SystemRandom()
     ndof = rampslistnd.ndof
+    ## data collecting
     nsuccessful = 0
-    collision = 0
-    notshorter = 0
-    notsync = 0
+    ncollision = 0
+    njointlimit = 0
+    nnotshorter = 0
+    nnotsync = 0
     for it in range(shortcutiter):
         if PRINT:
-            print "\n**********\niteration {0} \n**********".format(it + 1)
+            print "iteration {0} :".format(it + 1),
         dur = rampslistnd.duration
         
         ## sample two random time instants
         T = 0
         minallowedduration = max(0.04, 5*delta)
-        t0 = random_number_generator.uniform(0, dur)
-        t1 = random_number_generator.uniform(0, dur)
+        t0 = rng.uniform(0, dur)
+        t1 = rng.uniform(0, dur)
         if t1 < t0:
             temp = t1
             t1 = t0
@@ -223,6 +226,30 @@ def Shortcut(rampslistnd, vmvect, amvect, delta, shortcutiter, PRINT=True, robot
                     if (not incollision):
                         rampslistnd = ReplaceRampsListNDSegment\
                         (rampslistnd, newrampslistnd, t0, t1)
+                        
+                        nsuccessful += 1
+                        if PRINT:
+                            print "Successful Shortcut"
+                    else:
+                        ncollision += 1
+                        if PRINT:
+                            print "In Collision"
+                else:
+                    njointlimit += 1
+                    if PRINT:
+                        print "Not in Joint Limits"
+            else:
+                nnotshorter += 1
+                if PRINT:
+                    print "Not Shorter"
+        else:
+            nnotsync += 1
+            if PRINT:
+                print "Not Synchronizable"
+    
+    if ret_data:
+        data = [nsuccessful, ncollision, njointlimit, nnotshorter, nnotsync]
+        return [rampslistnd, data]
     
     return rampslistnd
 
@@ -256,19 +283,21 @@ def CheckJointLimits(robot, rampslistnd):
 
 
 ## CheckCollision checks collision for the robot along rampslistnd
-def InCollision(robot, rampslistnd):
+def InCollision(robot, rampslistnd, checkcollisionstep=0.005):
     if not HAS_OPENRAVE:
         return True
 
     ## user defined function
     env = robot.GetEnv()
     t = 0
-    dt = 0.005
     incollision = False
     while t < rampslistnd.duration:
         robot.SetDOFValues(rampslistnd.Eval(t))
         incollision = env.CheckCollision(robot)
-        if (incollision):
+        if incollision:
             return incollision
-        t += dt
+        t += checkcollisionstep
+    robot.SetDOFValues(rampslistnd.Eval(rampslistnd.duration))
+    incollision = env.CheckCollision(robot)
+    
     return incollision
