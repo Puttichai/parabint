@@ -8,7 +8,7 @@ RNG = random.SystemRandom()
 EPSILON = 1e-6
 INF = np.infty
 
-PRINTCASE = True
+PRINTCASE = False
 
 ## maximum number of grids allowed.
 DEFAULT_NUM_GRID = 50
@@ -33,7 +33,7 @@ class Ramp():
     T        : duration
     distance : x1 - x0
     """
-    def __init__(self, v, a, T, x0 = 0):
+    def __init__(self, v, a, T, x0=0):
         assert(T > -EPSILON)
 
         self.x0 = float(x0) # initial condition of the ramp
@@ -94,7 +94,7 @@ class RampsList():
     cumulateddistanceslist : list containing initial conditions of each ramp    
     """
     
-    def __init__(self, rampslist = []):
+    def __init__(self, rampslist=[]):
         self.cumulateddurationslist = []
         self.cumulateddistanceslist = []
         t = 0.0
@@ -219,7 +219,7 @@ class RampsList():
         return self.rampslist[i].a
     
 
-    def Plot(self, fignum = None, color = 'g', dt = 0.01, lw = 2):
+    def Plot(self, fignum=None, color='g', dt=0.01, lw=2):
         tvect = np.arange(0.0, self.duration, dt)
         np.append(tvect, self.duration)
         xvect = [self.Eval(t) for t in tvect]
@@ -229,7 +229,7 @@ class RampsList():
         plt.show(False)        
 
         
-    def Plotd(self, fignum = None, color = 'b', lw = 2):
+    def Plotd(self, fignum=None, color='b', lw=2):
         if (self.rampslist == None):
             pass
         else:
@@ -245,7 +245,7 @@ class RampsList():
             plt.show(False)
         
         
-    def Plotdd(self, fignum = None, color = 'm', lw = 2):
+    def Plotdd(self, fignum=None, color='m', lw=2):
         avect = []
         for k in self.rampslist:
             avect.append(k.a)
@@ -285,7 +285,7 @@ class RampsListND():
     cumulateddurationslist : list containing time instants at the begining of each ramp
     cumulateddistanceslist : list containing initial conditions of each ramp    
     """
-    def __init__(self, rampslistnd = []):
+    def __init__(self, rampslistnd=[]):
         if (len(rampslistnd) == 0):
             self.isvoid = True
             self.duration = 0
@@ -459,7 +459,7 @@ class RampsListND():
         return np.asarray(qdd)
     
     
-    def Plot(self, fignum = None, dt = 0.005):
+    def Plot(self, fignum=None, dt=0.005):
         if not (fignum == None):
             plt.figure(fignum)
         tvect = np.arange(0, self.duration, dt)
@@ -470,7 +470,7 @@ class RampsListND():
         plt.legend(handle)
 
 
-    def Plotd(self, fignum = None, includingsw = False):
+    def Plotd(self, fignum=None, includingsw=False):
         if not (fignum == None):
             plt.figure(fignum)
         tvect = self.switchpointslist # np.arange(0, self.duration, dt)
@@ -486,7 +486,7 @@ class RampsListND():
                 plt.plot([sw, sw], [ax[2], ax[3]], 'r', linewidth = 1)
 
     
-    def Plotdd(self, fignum = None, includingsw = False):
+    def Plotdd(self, fignum=None, includingsw=False):
         if not (fignum == None):
             plt.figure(fignum)
             
@@ -524,7 +524,7 @@ class Interval():
     """
     class Interval : currently implemented as closed interval
     """
-    def __init__(self, l = np.infty, u = -np.infty):
+    def __init__(self, l=np.infty, u=-np.infty):
         if (l <= u):
             self.l = float(l)
             self.u = float(u)
@@ -548,7 +548,7 @@ class Interval():
 
 ## Intersect checks whether two given intervals intersect each other.
 ## If ret is True, then it returns the intersection.
-def Intersect(i0, i1, ret = True):    
+def Intersect(i0, i1, ret=True):    
     if (i0.u >= i1.l - EPSILON2) and (i0.l <= i1.u + EPSILON2):
         if ret == True:
             return Interval(max(i0.l, i1.l), min(i0.u, i1.u))
@@ -563,7 +563,7 @@ def Intersect(i0, i1, ret = True):
 
 ## SolveIneq solves an inequality of the form
 ##              l <= ax + b <= u.
-def SolveIneq(a, b, l = -np.infty, u = np.infty):
+def SolveIneq(a, b, l=-np.infty, u=np.infty):
     if (l > u):
         return Interval()
     lu = Interval(l, u)    
@@ -586,7 +586,7 @@ def SolveIneq(a, b, l = -np.infty, u = np.infty):
 ########################################################################################
 
 ## Simultaneous interpolation with zero terminal velocities
-def InterpolateZeroVelND(x0vect, x1vect, vmvect, amvect, delta = 0):
+def InterpolateZeroVelND(x0vect, x1vect, vmvect, amvect, delta=0):
     ndof = len(x0vect)
     try:
         assert(ndof == len(x1vect))
@@ -633,7 +633,7 @@ def InterpolateZeroVelND(x0vect, x1vect, vmvect, amvect, delta = 0):
     
     
 ## Independent interpolation with arbitrary terminal velocities
-def InterpolateArbitraryVelND(x0vect, x1vect, v0vect, v1vect, vmvect, amvect, delta = 0):
+def InterpolateArbitraryVelND(x0vect, x1vect, v0vect, v1vect, vmvect, amvect, delta=0):
     ndof = len(x0vect)
     assert(ndof == len(x1vect))
     assert(ndof == len(v0vect))
@@ -1687,7 +1687,7 @@ def PLP_3(rampslist, vm, am, delta):
     t2l = -h + np.sqrt(r2 - (k + t0u)**2)
     t2u = -h + np.sqrt(r2 - (k + t0l)**2)
     if t2l > t2u:
-        print 'sign(h)', np.sign(h)
+        # print 'sign(h)', np.sign(h)
         t2l = -h - np.sqrt(r2 - (k + t0u)**2)
         t2u = -h - np.sqrt(r2 - (k + t0l)**2)
 
@@ -1699,7 +1699,7 @@ def PLP_3(rampslist, vm, am, delta):
     t0l = -k + np.sqrt(r2 - (h + t2u)**2)
     t0u = -k + np.sqrt(r2 - (h + t2l)**2)
     if t0l > t0u:
-        print 'sign(k)', np.sign(k)
+        # print 'sign(k)', np.sign(k)
         t0l = -k - np.sqrt(r2 - (h + t2u)**2)
         t0u = -k - np.sqrt(r2 - (h + t2l)**2)
 
@@ -2606,7 +2606,7 @@ def Reinterpolate1D_ThreeRamps(rampslist0, t0, t1, t2, vm, am):
 
 
 ## CheckRampsList checks whether the input rampslist violates any constraint
-def CheckRampsList(rampslist, vm, am, delta, reframpslist = RampsList(), PRINT = False):
+def CheckRampsList(rampslist, vm, am, delta, reframpslist = RampsList(), PRINT=False):
     if (rampslist.isvoid):
         return False
     
