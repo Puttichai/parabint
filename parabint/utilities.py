@@ -292,12 +292,12 @@ def InCollision(robot, rampslistnd, checkcollisionstep=0.005):
     t = 0
     incollision = False
     while t < rampslistnd.duration:
-        robot.SetDOFValues(rampslistnd.Eval(t))
+        robot.SetActiveDOFValues(rampslistnd.Eval(t))
         incollision = env.CheckCollision(robot)
         if incollision:
             return incollision
         t += checkcollisionstep
-    robot.SetDOFValues(rampslistnd.Eval(rampslistnd.duration))
+    robot.SetActiveDOFValues(rampslistnd.Eval(rampslistnd.duration))
     incollision = env.CheckCollision(robot)
     
     return incollision
