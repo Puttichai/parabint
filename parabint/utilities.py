@@ -19,11 +19,14 @@ def ConvertOpenRAVETrajToRampsListND(openravetraj, vmvect, amvect, delta=0):
     q_dof = q_group.dof
     q_offset = q_group.offset
 
-    hasvelocities = True
-    try:
-        qd_group = configspec.GetGroupFromName('joint_velocities')
-    except:
+    if q_group.interpolation == 'linear':
         hasvelocities = False
+    else:
+        hasvelocities = True
+        try:
+            qd_group = configspec.GetGroupFromName('joint_velocities')
+        except:
+            hasvelocities = False
 
     if hasvelocities:
         assert(qd_group.interpolation == 'linear')
