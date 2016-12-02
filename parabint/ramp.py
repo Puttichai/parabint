@@ -15,22 +15,22 @@ class Ramp(object):
     Parameters (input)
     ------------------
     v0 : float
-        The initial velocity of the trajectory.
+        Initial velocity of the trajectory.
     a : float
-        The acceleration of the trajectory.
+        Acceleration of the trajectory.
     duration : float
-        The duration of the trajectory. It must be non-negative.
+        Duration of the trajectory. It must be non-negative.
     x0 : float, optional
-        The initial displacement of the trajectory. If not given, x0 will be set to zero.
+        Initial displacement of the trajectory. If not given, x0 will be set to zero.
 
     Parameters (calculated from inputs)
     -----------------------------------
     v1 : float
-        The final velocity of the trajectory.
+        Final velocity of the trajectory.
     d : float
-        The total displacement made by this Ramp (i.e., independent of x0).
+        total displacement made by this Ramp (i.e., independent of x0).
     x1 : float
-        The final displacement at the end of the trajectory: x1 = x0 + d.
+        Final displacement at the end of the trajectory: x1 = x0 + d.
 
     """
     def __init__(self, v0, a, t, x0=0):
@@ -53,13 +53,13 @@ class Ramp(object):
         Parameters (input)
         ------------------
         v0 : float
-            The initial velocity of the trajectory.
+            Initial velocity of the trajectory.
         a : float
-            The acceleration of the trajectory.
+            Acceleration of the trajectory.
         duration : float
-            The duration of the trajectory. It must be non-negative.
+            Duration of the trajectory. It must be non-negative.
         x0 : float, optional
-            The initial displacement of the trajectory. If not given, x0 will be set to zero.
+            Initial displacement of the trajectory. If not given, x0 will be set to zero.
 
         """
         assert(t >= -epsilon)
@@ -219,7 +219,7 @@ class Ramp(object):
         Parameters
         ----------
         t0 : float
-            The position on the horizontal (time) axis to start plotting.
+            Position on the horizontal (time) axis to start plotting.
         fignum : int, float, string
             Figure's number/title
         
@@ -233,7 +233,7 @@ class Ramp(object):
         Parameters
         ----------
         t0 : float
-            The position on the horizontal (time) axis to start plotting.
+            Position on the horizontal (time) axis to start plotting.
         fignum : int, float, string
             Figure's number/title
         
@@ -252,7 +252,7 @@ class Ramp(object):
         Parameters
         ----------
         t0 : float
-            The position on the horizontal (time) axis to start plotting.
+            Position on the horizontal (time) axis to start plotting.
         fignum : int, float, string
             Figure's number/title
         
@@ -336,7 +336,31 @@ class Ramp(object):
         
 
 class ParabolicCurve(object):
-    """
+    """A ParabolicCurve is a piecewise-constant-acceleration one-dimensional trajectory. It is a
+    concatenation of Ramps.
+
+    Parameters (input)
+    ------------------
+    ramps : list of Ramps, optional
+        The list of Ramps to construct the ParabolicCurve with.
+
+    Parameters (generated from inputs)
+    ----------------------------------
+    x0 : float
+        Initial displacement of the trajectory.
+    x1 : float
+        Final displacement of the trajectory.
+    v0 : float
+        Initial velocity of the trajectory.
+    v1 : float
+        Final velocity of the trajectory.
+    switchpointsList : list of float
+        List of switch points, time instants at which the acceleration changes.
+    duration : float
+        Duration of the trajectory.
+    d : float
+        Total displacement made by this trajectory.
+
     """
     def __init__(self, ramps=[]):
         self.switchpointsList = []
@@ -413,6 +437,14 @@ class ParabolicCurve(object):
 
 
     def Append(self, curve):
+        """Append a ParabolicCurve to this one.
+
+        Parameters
+        ----------
+        curve : ParabolicCurve
+            ParabolicCurve to be appended.
+        
+        """
         if len(self) == 0:
             if len(curve) > 0:
                 self.ramps = deepcopy(curve.ramps)
@@ -444,6 +476,21 @@ class ParabolicCurve(object):
 
 
     def FindRampIndex(self, t):
+        """Find the index of the ramp in which the given time instant lies.
+
+        Parameters
+        ----------
+        t : float
+            Time instant.
+        
+        Returns
+        -------
+        i : int
+            Ramp index.
+        remainder : float
+            Time interval between the beginning of the ramp to t.
+        
+        """
         if (t <= epsilon):
             i = 0
             remainder = 0.0
@@ -454,6 +501,19 @@ class ParabolicCurve(object):
 
 
     def EvalPos(self, t):
+        """Evalutaion the position at the given time instant.
+
+        Parameters
+        ----------
+        t : float
+            Time instant at which to evaluate the position.
+
+        Returns
+        -------
+        x : float
+            Position at time t.
+
+        """
         assert(t >= -epsilon)
         assert(t <= self.duration + epsilon)
 
@@ -462,6 +522,19 @@ class ParabolicCurve(object):
 
 
     def EvalVel(self, t):
+        """Evalutaion the velocity at the given time instant.
+
+        Parameters
+        ----------
+        t : float
+            Time instant at which to evaluate the velocity.
+
+        Returns
+        -------
+        v : float
+            Velocity at time t.
+
+        """
         assert(t >= -epsilon)
         assert(t <= self.duration + epsilon)
 
@@ -470,6 +543,19 @@ class ParabolicCurve(object):
 
 
     def EvalAcc(self, t):
+        """Evalutaion the acceleration at the given time instant.
+
+        Parameters
+        ----------
+        t : float
+            Time instant at which to evaluate the acceleration.
+
+        Returns
+        -------
+        a : float
+            Acceleration at time t.
+
+        """
         assert(t >= -epsilon)
         assert(t <= self.duration + epsilon)
 
@@ -478,6 +564,16 @@ class ParabolicCurve(object):
 
 
     def GetPeaks(self):
+        """Calculate the peaks of positions along the trajectory.
+
+        Returns
+        -------
+        xmin : float
+            Minimum position along the trajectory.
+        xmax : float
+            Maximum position along the trajectory.
+
+        """
         return self._GetPeaks(0, self.duration)
 
 
@@ -496,6 +592,15 @@ class ParabolicCurve(object):
 
 
     def SetInitialValue(self, x0):
+        """Set the initial displacement (position) of the trajectory to the given value and recalculate the
+        related parameters accordingly.
+
+        Parameters
+        ----------
+        newX0 : float
+            The new initial displacement.
+
+        """
         self.x0 = x0
         newX0 = x0
         for ramp in self.ramps:
@@ -505,6 +610,16 @@ class ParabolicCurve(object):
 
 
     def SetConstant(self, x0, t):
+        """Set this ParabolicCurve to be a constant trajectory (i.e. zero-velocity and zero-acceleration.
+
+        Parameters
+        ----------
+        x0 : float
+            New initial dispalcement of the trajectory
+        t : float
+            New trajectory duration
+        
+        """
         assert(t >= 0)
         ramp = Ramp(0, 0, t, x0)
         self.Initialize([ramp])
@@ -538,6 +653,20 @@ class ParabolicCurve(object):
         
         
     def Cut(self, t):
+        """Cut the trajectory into two halves. self will be the left half which contains all the ramps from
+        time 0 to t. The other half of the trajectory is returned.
+
+        Parameters
+        ----------
+        t : float
+            Time instant at which to cut the trajectory
+
+        Returns
+        -------
+        remCurve : ParabolicCurve
+            ParabolicCurve containing all the ramps from time t to duration of the original trajectory.
+
+        """
         if (t <= 0):
             remCurve = ParabolicCurve(self.ramps)
             self.SetZeroDuration(self.x0, self.v0)
@@ -559,6 +688,14 @@ class ParabolicCurve(object):
 
 
     def TrimFront(self, t):
+        """Trim out the trajectory segment from time 0 to t.
+
+        Parameters
+        ----------
+        t : float
+            Time instant at which to trim the trajectory
+        
+        """
         if (t <= 0):
             return
         elif (t >= self.duration):
@@ -574,6 +711,14 @@ class ParabolicCurve(object):
 
 
     def TrimBack(self, t):
+        """Trim out the trajectory segment from time t to duration.
+
+        Parameters
+        ----------
+        t : float
+            Time instant at which to trim the trajectory
+        
+        """
         if (t <= 0):
             self.SetZeroDuration(self.x0, self.v0)
             return
@@ -590,6 +735,22 @@ class ParabolicCurve(object):
 
     # Visualization
     def PlotPos(self, fignum=None, color='g', dt=0.01, lw=2, includingSW=False):
+        """Plot trajectory position vs time.
+
+        Parameters
+        ----------
+        fignum : int, float, string, optional
+            Figure's number/title
+        color : string, optional
+            Matplotlib's color option.
+        dt : float, optional
+            Time resolution to evaluate the position.
+        lw : int, optional
+            Linewidth
+        includingSW : bool, optional
+            If True, draw vertical straight lines at switch points.
+        
+        """
         tVect = np.arange(0, self.duration, dt)
         if tVect[-1] < self.duration:
             tVect = np.append(tVect, self.duration)
@@ -608,6 +769,20 @@ class ParabolicCurve(object):
 
 
     def PlotVel(self, fignum=None, color=None, lw=2, includingSW=False, **kwargs):
+        """Plot trajectory velocity vs time.
+
+        Parameters
+        ----------
+        fignum : int, float, string, optional
+            Figure's number/title
+        color : string, optional
+            Matplotlib's color option.
+        lw : int, optional
+            Linewidth
+        includingSW : bool, optional
+            If True, draw vertical straight lines at switch points.
+        
+        """
         if fignum is not None:
             plt.figure(fignum)
 
@@ -630,6 +805,18 @@ class ParabolicCurve(object):
 
 
     def PlotAcc(self, fignum=None, color=None, lw=2, **kwargs):
+        """Plot trajectory velocity vs time.
+
+        Parameters
+        ----------
+        fignum : int, float, string, optional
+            Figure's number/title
+        color : string, optional
+            Matplotlib's color option.
+        lw : int, optional
+            Linewidth
+        
+        """
         if fignum is not None:
             plt.figure(fignum)
             
@@ -649,7 +836,9 @@ class ParabolicCurve(object):
 
 
 class ParabolicCurvesND(object):
-    """
+    """A ParabolicCurvesND is a (parabolic) trajectory of an n-DOF system. A trajectory of each DOF is a
+    ParabolicCurve.
+
     """
     def __init__(self, curves=[]):
         if len(curves) == 0:
@@ -860,6 +1049,18 @@ class ParabolicCurvesND(object):
 
     # Visualization
     def PlotPos(self, fignum='Displacement Profiles', includingSW=False, dt=0.005):
+        """Plot trajectory position vs time.
+
+        Parameters
+        ----------
+        fignum : int, float, string, optional
+            Figure's number/title
+        includingSW : bool, optional
+            If True, draw vertical straight lines at switch points.
+        dt : float, optional
+            Time resolution to evaluate the position.
+        
+        """
         plt.figure(fignum)
 
         tVect = np.arange(0, self.duration, dt)
@@ -879,6 +1080,16 @@ class ParabolicCurvesND(object):
         
 
     def PlotVel(self, fignum='Velocity Profiles', includingSW=False, **kwargs):
+        """Plot trajectory velocity vs time.
+
+        Parameters
+        ----------
+        fignum : int, float, string, optional
+            Figure's number/title
+        includingSW : bool, optional
+            If True, draw vertical straight lines at switch points.
+        
+        """
         plt.figure(fignum)
         plt.hold(True)
 
@@ -897,6 +1108,14 @@ class ParabolicCurvesND(object):
         
 
     def PlotAcc(self, fignum='Acceleration Profiles', **kwargs):
+        """Plot trajectory acceleration vs time.
+
+        Parameters
+        ----------
+        fignum : int, float, string, optional
+            Figure's number/title
+        
+        """
         plt.figure(fignum)
         plt.hold(True)
 
