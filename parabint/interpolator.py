@@ -1,5 +1,5 @@
 import numpy as np
-from ramp import Ramp, ParabolicCurve, ParabolicCurvesND
+from trajectory import Ramp, ParabolicCurve, ParabolicCurvesND
 from utilities import *
 import random
 _rng = random.SystemRandom()

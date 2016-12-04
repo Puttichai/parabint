@@ -4,10 +4,30 @@ inf = 1e300
 
 
 def FuzzyEquals(a, b, epsilon):
+    """Check if the given two numbers are equal, up to discrepancy of the given epsilon.
+    Return True if abs(a - b) <= epsilon.
+
+    Parameters
+    ----------
+    a : float
+    b : float
+    epsilon : float
+
+    """
     return abs(a - b) <= epsilon
 
 
 def FuzzyZero(a, epsilon):
+    """Check if the given number is zero, up to discrepancy of the given epsilon.
+    Return True if abs(a) <= epsilon.
+
+    Parameters
+    ----------
+    a : float
+    b : float
+    epsilon : float
+
+    """
     return abs(a) <= epsilon
 
 
