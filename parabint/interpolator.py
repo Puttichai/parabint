@@ -1215,7 +1215,7 @@ def _FixSwitchTimeTwoRamps(curve, vm, am, delta):
         return curve
     elif (t0 < delta) and (t1 >= delta):
         return _PP1(curve, vm, am, delta)
-    elif (t0 <= delta) and (t1 < delta):
+    elif (t0 >= delta) and (t1 < delta):
         return _PP2(curve, vm, am, delta)
     else:
         return _PP3(curve, vm, am, delta)
@@ -1515,12 +1515,12 @@ def _PP3(curve, vm, am, delta):
     if (t0 <= t1):
         # When flipped, we would have t0New > t1New. Therefore, we follow the procedure of PP1.
         k = a1New*delta
-        discriminant = k**2 + 4*(k*v0 + v1**2) - 8*a1new*d
+        discriminant = k**2 + 4*(k*v0 + v1**2) - 8*a1New*d
         if (discriminant < 0):
             # Fail to calculate vpNew following PP1
             return ParabolicCurve()
 
-        vpNew = 0.5*(k - np.sign(a1new)*np.sqrt(discriminant))
+        vpNew = 0.5*(k - np.sign(a1New)*np.sqrt(discriminant))
         t1New = (v1 - vpNew)/a1New
         if (t1New >= delta):
             a0New = (vpNew - v0)*deltaInv
@@ -1533,15 +1533,15 @@ def _PP3(curve, vm, am, delta):
     else:
         # (t0 > t1)
         # When flipped, we would have t0New < t1New. Therefore, we follow the procedure of PP2.
-        k = a0new*delta
-        discriminant = k**2 - 4*(k*v1 - v0**2) + 8*a0new*d
-        discriminant = k**2 + 4*(k*v0 + v1**2) - 8*a1new*d
+        k = a0New*delta
+        discriminant = k**2 - 4*(k*v1 - v0**2) + 8*a0New*d
+        discriminant = k**2 + 4*(k*v0 + v1**2) - 8*a1New*d
         if (discriminant < 0):
             # Fail to calculate vpNew following PP2
             return ParabolicCurve()
 
-        vpNew = 0.5*( - k + np.sign(a0new)*np.sqrt(discriminant))
-        t0New = (vpNew - v0)/a0new
+        vpNew = 0.5*( - k + np.sign(a0New)*np.sqrt(discriminant))
+        t0New = (vpNew - v0)/a0New
         if (t0New >= delta):
             a1New = (v1 - vpNew)*deltaInv
             ramp0A = Ramp(v0, a0New, t0New, x0)
