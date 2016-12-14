@@ -230,7 +230,7 @@ def Compute1DTrajectory(x0, x1, v0, v1, vm, am):
         newVp = vm if vp > 0 else -vm
         ramp1 = Ramp(newVp, 0.0, 2*t + nom/denom)
         ramp2 = Ramp(newVp, -10, (vp - v1)*a0Inv - t)
-        curve = ParabolicCurve([ramp0, ramp1])
+        curve = ParabolicCurve([ramp0, ramp1, ramp2])
 
     # Check before returning
     return curve
