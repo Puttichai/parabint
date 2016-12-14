@@ -18,6 +18,28 @@ def _GetPeaks(x0, x1, v0, v1, a, t):
     """Calculate the maximum and minimum displacement occuring betweeb time 0 and t given (x0, x1, v0,
     v1, a).
 
+    Parameters
+    ----------
+    x0 : float
+        Initial displacement of the segment
+    x1 : float
+        Final displacement of the segment
+    v0 : float
+        Initial velocity of the segment
+    v1 : float
+        Final velocity of the segment
+    a : float
+        Acceleration of the segment
+    t : float
+        Duration of the segment
+
+    Returns
+    -------
+    bmin : float
+        Minimum displacement along this segment
+    bmax : float
+        Maximum displacement along this segment
+    
     """
     if FuzzyZero(a, epsilon):
         if v0 > 0:
@@ -49,6 +71,35 @@ def _GetPeaks(x0, x1, v0, v1, a, t):
 
 def CheckSegment(x0, x1, v0, v1, a, t, xmin, xmax, vm, am):
     """
+    Check if a linear trajectory segment connecting (x0, v0) and (x1, v1) is valid.
+    
+    Parameters
+    ----------
+    x0 : float
+        Initial displacement of the segment
+    x1 : float
+        Final displacement of the segment
+    v0 : float
+        Initial velocity of the segment
+    v1 : float
+        Final velocity of the segment
+    a : float
+        Acceleration of the segment
+    t : float
+        Duration of the segment
+    xmin : float
+        Displacement lower limit
+    xmax : float
+        Displacement upper limit
+    vm : float
+        Maximum velocity
+    am : float
+        Maximum acceleration
+
+    Returns
+    -------
+    ret : one of ParabolicCheckReturn
+    
     """
     if t < -epsilon:
         log.warn("PCR_NegativeDuration: duration = {0}".format(t))
@@ -83,12 +134,56 @@ def CheckSegment(x0, x1, v0, v1, a, t, xmin, xmax, vm, am):
 
 def CheckRamp(ramp, xmin, xmax, vm, am):
     """
+    Check if the given ramp is consistent with (xmin, xmax, vm, am).
+    
+    Parameters
+    ----------
+    ramp : Ramp
+    xmin : float
+        Displacement lower limit
+    xmax : float
+        Displacement upper limit
+    vm : float
+        Maximum velocity
+    am : float
+        Maximum acceleration
+
+    Returns
+    -------
+    ret : one of ParabolicCheckReturn
+    
     """
     return CheckSegment(ramp.x0, ramp.x1, ramp.v0, ramp.v1, ramp.a, ramp.duration, xmin, xmax, vm, am)
 
 
 def CheckParabolicCurve(curve, xmin, xmax, vm, am, x0, x1, v0, v1):
     """
+    Check if the given parabolic curve is consistent with (xmin, xmax, vm, am, x0, x1, v0, v1).
+    
+    Parameters
+    ----------
+    curve : ParabolicCurve
+    xmin : float
+        Displacement lower limit
+    xmax : float
+        Displacement upper limit
+    vm : float
+        Maximum velocity
+    am : float
+        Maximum acceleration
+    x0 : float
+        Initial displacement
+    x1 : float
+        Final displacement
+    v0 : float
+        Initial velocity
+    v1 : float
+        Final velocity
+
+    Returns
+    -------
+    ret : one of ParabolicCheckReturn
+    
     """
     # Check the first ramp
     if not FuzzyEquals(curve[0].x0, x0, epsilon):
@@ -126,6 +221,32 @@ def CheckParabolicCurve(curve, xmin, xmax, vm, am, x0, x1, v0, v1):
 
 def CheckParabolicCurvesND(curvesnd, xminVect, xmaxVect, vmVect, amVect, x0Vect, x1Vect, v0Vect, v1Vect):
     """
+    Check if the given paraboliccurvesnd is consistent with the given constraints.
+    
+    Parameters
+    ----------
+    curvesnd : ParabolicCurvesND
+    xminVect : numpy.ndarray
+        Displacement lower limit
+    xmaxVect : numpy.ndarray
+        Displacement upper limit
+    vmVect : numpy.ndarray
+        Maximum velocity
+    amVect : numpy.ndarray
+        Maximum acceleration
+    x0Vect : numpy.ndarray
+        Initial displacement
+    x1Vect : numpy.ndarray
+        Final displacement
+    v0Vect : numpy.ndarray
+        Initial velocity
+    v1Vect : numpy.ndarray
+        Final velocity
+
+    Returns
+    -------
+    ret : one of ParabolicCheckReturn
+    
     """
     duration = curvesnd.duration
     for (icurve, (curve, xmin, xmax, vm, am, x0, x1, v0, v1)) in enumerate(zip(curvesnd, xminVect, xmaxVect, vmVect, amVect, x0Vect, x1Vect, v0Vect, v1Vect)):
