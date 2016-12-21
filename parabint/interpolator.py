@@ -8,6 +8,9 @@ import logging
 logging.basicConfig(format='[%(levelname)s] [%(name)s: %(funcName)s] %(message)s', level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
+_defaultGridRes = 50
+_defaultMinSwitch = 8e-3
+
 # Math operations
 Sqrt = np.sqrt
 
@@ -138,6 +141,39 @@ def _RecomputeNDTrajectoryFixedDuration(curves, vmVect, amVect, maxIndex, tryHar
 
 def _RecomputeNDTrajectoryFixedDurationWithDelta(curves, vmVect, amVect, maxIndex, delta, tryHarder=False):
     raise NotImplementedError
+
+
+def _ComputeGrid(curve, delta):
+    """This function compute a grid which devides each ramp of the given curve into
+    intervals of equal duration t, such that t is smallest possible but still greater
+    than delta.
+
+    Grid resolution at each ramp may be different.
+
+    """
+    totalNumGrid = sum([np.floor(r.duration/delta) for r in curve])
+    if totalNumGrid < _defaultGridRes:
+        grids = np.array([])
+        startTime = 0
+        for ramp in curve:
+            n = np.floor(ramp.duration/delta)
+            endTime = startTime + ramp.duration
+            grid = np.linspace(startTime, endTime, num=n, endpoint=False)
+            grids = np.append(grids, grid)
+            startTime = endTime
+        grids = np.append(grids, curve.duration)
+    else:
+        nums = [np.floor(_defaultGridRes*r.duration/curve.duration) for r in curve]
+        grids = np.array([])
+        startTime = 0
+        for (n, ramp) in zip(nums, curve):
+            endTime = startTime + ramp.duration
+            grid = np.linspace(startTime, endTime, num=n, endpoint=False)
+            grids = np.append(grids, grid)
+            startTime = endTime
+        grids = np.append(grids, curve.duration)
+
+    return grids
 
 
 def ComputeNDTrajectoryFixedDuration(x0Vect, x1Vect, v0Vect, v1Vect, duration, xminVect, xmaxVect, vmVect, amVect):
