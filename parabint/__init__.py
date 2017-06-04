@@ -1,4 +1,7 @@
 import trajectory
 import interpolator
 import checker
-import optimization
+try:
+    import optimization
+except ImportError:
+    pass
