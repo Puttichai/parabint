@@ -22,7 +22,7 @@ Sqrt = np.sqrt
 #
 # ND Trajectory
 #
-def ComputeZeroVelNDTrajjectory(x0Vect, x1Vect, vmVect, amVect, delta=0.0):
+def ComputeZeroVelNDTrajjectory(x0Vect, x1Vect, vmVect, amVect, delta=None):
     ndof = len(x0Vect)
     assert(ndof == len(x1Vect))
     assert(ndof == len(vmVect))
@@ -42,8 +42,8 @@ def ComputeZeroVelNDTrajjectory(x0Vect, x1Vect, vmVect, amVect, delta=0.0):
         curvesnd.SetConstant(x0Vect, 0.0)
         return curvesnd
 
-    if delta == 0.0:
-        sdProfile = Compute1DTrajectory(0.0, 1.0, 0.0, 0.0, vMin, aMin)
+    if delta is None:
+        sdProfile = _Compute1DTrajectoryWithoutDelta(0.0, 1.0, 0.0, 0.0, vMin, aMin)
     else:
         sdProfile = ComputeZeroVel1DTrajectoryWithDelta(0.0, 1.0, vMin, aMin, delta)
 
@@ -68,7 +68,7 @@ def ComputeZeroVelNDTrajjectory(x0Vect, x1Vect, vmVect, amVect, delta=0.0):
 
 
 def ComputeArbitraryVelNDTrajectory(x0Vect, x1Vect, v0Vect, v1Vect, xminVect, xmaxVect,
-                                    vmVect, amVect, delta=0.0, tryHarder=False):
+                                    vmVect, amVect, delta=None, tryHarder=False):
     ndof = len(x0Vect)
     assert(ndof == len(x1Vect))
     assert(ndof == len(v0Vect))
@@ -84,14 +84,14 @@ def ComputeArbitraryVelNDTrajectory(x0Vect, x1Vect, v0Vect, v1Vect, xminVect, xm
     maxDuration = 0.0
     maxIndex = 0
     for idof in xrange(ndof):
-        if delta == 0.0:
-            curve = Compute1DTrajectory(x0Vect[idof], x1Vect[idof],
-                                        v0Vect[idof], v1Vect[idof],
-                                        vmVect[idof], amVect[idof])
+        if delta is None:
+            curve = _Compute1DTrajectoryWithoutDelta(x0Vect[idof], x1Vect[idof],
+                                                     v0Vect[idof], v1Vect[idof],
+                                                     vmVect[idof], amVect[idof])
         else:
-            curve = Compute1DTrajectoryWithDelta(x0Vect[idof], x1Vect[idof],
-                                                 v0Vect[idof], v1Vect[idof],
-                                                 vmVect[idof], amVect[idof], delta)
+            curve = _Compute1DTrajectoryWithDelta(x0Vect[idof], x1Vect[idof],
+                                                  v0Vect[idof], v1Vect[idof],
+                                                  vmVect[idof], amVect[idof], delta)
         curves.append(curve)
         if curve.duration > maxDuration:
             maxDuration = curve.duration
@@ -188,7 +188,14 @@ def ComputeNDTrajectoryFixedDuration(x0Vect, x1Vect, v0Vect, v1Vect, duration,
 #
 # 1D Trajectory
 #
-def Compute1DTrajectory(x0, x1, v0, v1, vm, am):
+def Compute1DTrajectory(x0, x1, v0, v1, vm, am, delta=None):
+    if delta is None:
+        return _Compute1DTrajectoryWithoutDelta(x0, x1, v0, v1, vm, am)
+    assert(delta > 0)
+    return _Compute1DTrajectoryWithDelta(x0, x1, v0, v1, vm, am, delta)
+
+
+def _Compute1DTrajectoryWithoutDelta(x0, x1, v0, v1, vm, am):
     d = x1 - x0
     dv = v1 - v0
     v0Sqr = v0*v0
@@ -576,7 +583,7 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
 
     if FuzzyEquals(i2l, i4u, epsilon) or FuzzyEquals(i2u, i4l, epsilon):
         log.debug("Interval 2 and interval 4 intersect at a point, most likely because the given duration is actually its minimum time")
-        curve = Compute1DTrajectory(x0, x1, v0, v1, vm, am)
+        curve = _Compute1DTrajectoryWithoutDelta(x0, x1, v0, v1, vm, am)
         if curve.IsEmpty():
             log.debug("x0 = {0}; x1 = {1}; v0 = {2}; v1 = {3}; vm = {4}; am = {5}; duration = {6}".format(x0, x1, v0, v1, vm, am, duration))
             return curve
@@ -1245,7 +1252,7 @@ def SnapToGrid_ThreeRamps(curve, vm, am, delta, tmax, grid):
 # 1D Trajectory with minimum-switch-time constraint
 #
 def ComputeZeroVel1DTrajectoryWithDelta(x0, x1, vm, am, delta):
-    curve = Compute1DTrajectory(x0, x1, 0.0, 0.0, vm, am)
+    curve = _Compute1DTrajectoryWithoutDelta(x0, x1, 0.0, 0.0, vm, am)
     
     if len(curve) == 1:
         assert(not (x0 == 0 and x1 == 0))
@@ -1344,8 +1351,8 @@ def _FixSwitchTimeZeroVelPLP(curve, vm, am, delta):
             return ParabolicCurve([ramp0, ramp1, ramp2])
     
 
-def Compute1DTrajectoryWithDelta(x0, x1, v0, v1, vm, am, delta):
-    curve = Compute1DTrajectory(x0, x1, v0, v1, vm, am)
+def _Compute1DTrajectoryWithDelta(x0, x1, v0, v1, vm, am, delta):
+    curve = _Compute1DTrajectoryWithoutDelta(x0, x1, v0, v1, vm, am)
 
     if len(curve) == 1:
         return _FixSwitchTimeOneRamp(curve, vm, am, delta)
@@ -1801,7 +1808,7 @@ def _PLP1(curve, vm, am, delta):
     a0New = (vp - v0)*deltaInv
     ramp0A = Ramp(v0, a0New, delta, x0)
     dRem = d - ramp0A.d
-    subCurveA = Compute1DTrajectoryWithDelta(0, dRem, vp, v1, vm, am, delta)
+    subCurveA = _Compute1DTrajectoryWithDelta(0, dRem, vp, v1, vm, am, delta)
     assert(not subCurve.IsEmpty()) # this computation should not fail
     if len(subCurveA) == 1:
         curveA = ParabolicCurve([ramp0A, subCurveA[0]])
@@ -1861,7 +1868,7 @@ def _PLP2(curve, vm, am, delta):
     a2New = (v1 - vp)*deltaInv
     ramp2A = Ramp(vp, a2New, delta)
     dRem = d - ramp2A.d
-    subCurveA = Compute1DTrajectoryWithDelta(0, dRem, v0, vp, vm, am, delta)
+    subCurveA = _Compute1DTrajectoryWithDelta(0, dRem, v0, vp, vm, am, delta)
     assert(not subCurve.IsEmpty()) # this computation should not fail
     if len(subCurveA) == 1:
         curveA = ParabolicCurve([subCurveA[0], ramp2A])
@@ -1971,7 +1978,7 @@ def _PLP3(curve, vm, am, delta):
     d0 = firstRamp.d + middleRamp.d
     d1 = middleRamp.d + lastRamp.d
     # B1: merge the first two ramps together
-    subCurveB1 = Compute1DTrajectoryWithDelta(0, d0, v0, vp, vm, am, delta)
+    subCurveB1 = _Compute1DTrajectoryWithDelta(0, d0, v0, vp, vm, am, delta)
     if len(subCurveB1) == 1:
         curveB1 = ParabolicCurve([subCurveB1[0], lastRamp])
     else:
@@ -1979,7 +1986,7 @@ def _PLP3(curve, vm, am, delta):
         curveB1 = ParabolicCurve([subCurveB1[0], subCurveB1[1], lastRamp])
 
     # B2: merge the last two ramps together
-    subCurveB2 = Compute1DTrajectoryWithDelta(0, d1, vp, v1, vm, am, delta)
+    subCurveB2 = _Compute1DTrajectoryWithDelta(0, d1, vp, v1, vm, am, delta)
     if len(subCurveB2) == 1:
         curveB2 = ParabolicCurve([firstRamp, subCurveB2[0]])
     else:
@@ -2078,7 +2085,7 @@ def _PLP4(curve, vm, am, delta):
     a0New = (vp - v0)*deltaInv
     ramp0A = Ramp(v0, a0New, delta, x0)
     dRem = d - ramp0A.d
-    subCurveA = Compute1DTrajectoryWithDelta(0, dRem, vp, v1, vm, am, delta)
+    subCurveA = _Compute1DTrajectoryWithDelta(0, dRem, vp, v1, vm, am, delta)
     assert(not subCurve.IsEmpty()) # this computation should not fail
     if len(subCurveA) == 1:
         curveA = ParabolicCurve([ramp0A, subCurveA[0]])
@@ -2210,7 +2217,7 @@ def _PLP5(curve, vm, am, delta):
     a2New = (v1 - vp)*deltaInv
     ramp2A = Ramp(vp, a2New, delta)
     dRem = d - ramp2A.d
-    subCurveA = Compute1DTrajectoryWithDelta(0, dRem, v0, vp, vm, am, delta)
+    subCurveA = _Compute1DTrajectoryWithDelta(0, dRem, v0, vp, vm, am, delta)
     assert(not subCurve.IsEmpty()) # this computation should not fail
     if len(subCurveA) == 1:
         curveA = ParabolicCurve([subCurveA[0], ramp2A])
@@ -2359,7 +2366,7 @@ def _PLP6(curve, vm, am, delta):
     # Try case B.
     # B1
     dRemB = d - newFirstRamp.d
-    subCurveB1 = Compute1DTrajectoryWithDelta(0, dRemB, vp, v1, vm, am, delta)
+    subCurveB1 = _Compute1DTrajectoryWithDelta(0, dRemB, vp, v1, vm, am, delta)
     if len(subCurveB) == 1:
         curveB1 = ParabolicCurve([newFirstRamp, subCurveB1[0]])
     else:
@@ -2380,7 +2387,7 @@ def _PLP6(curve, vm, am, delta):
     # Try case C.
     # C1
     dRemC = d - newLastRamp.d
-    subCurveC1 = Compute1DTrajectoryWithDelta(x0, x0 + dRemC, v0, vp, vm, am, delta)
+    subCurveC1 = _Compute1DTrajectoryWithDelta(x0, x0 + dRemC, v0, vp, vm, am, delta)
     if len(subCurveC1) == 1:
         curveC1 = ParabolicCurve([subCurveC1[0], newLastRamp])
     else:
