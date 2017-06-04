@@ -21,3 +21,19 @@ curvesnd = ParabolicCurvesND(curves=[curve1, curve2])
 
 curvesnd.PlotVel() # visualize the velocity profile
 ```
+## Trajectory Interpolation
+
+A parabolic trajectory can be generated from a set of boundary conditions `(x0, x1, v0, v1)` subject to max velocity `vm`, max acceleration `am`, and/or minimum-switch-time `delta`.
+```python
+from parabint import interpolator
+
+x0 = 0; x1 = 0.5; v0 = 0.2; v1 = 0.4
+vm = 1.0; am = 0.5
+delta = 0.5
+
+curve1 = interpolator.Compute1DTrajectory(x0, x1, v0, v1, vm, am) # without minimum-switch-time
+curve2 = interpolator.Compute1DTrajectory(x0, x1, v0, v1, vm, am, delta) # with minimum-switch-time
+
+curve1.PlotVel(fignum=1)
+curve2.PlotVel(fignum=1)
+```
