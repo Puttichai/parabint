@@ -1,14 +1,18 @@
 import numpy as np
-from trajectory import Ramp, ParabolicCurve, ParabolicCurvesND
-from utilities import *
+import bisect
+from .trajectory import Ramp, ParabolicCurve, ParabolicCurvesND
+from .utilities import *
+from .checker import *
 import random
 _rng = random.SystemRandom()
 
 import logging
-logging.basicConfig(format='[%(levelname)s] [%(name)s: %(funcName)s] %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='[%(levelname)s] [%(name)s: %(funcName)s] %(message)s',
+                    level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 _defaultGridRes = 50
+_gridThreshold = 8 # if there are more than _gridThreshold grid lines, try PLP first
 _defaultMinSwitch = 8e-3
 
 # Math operations
@@ -63,7 +67,8 @@ def ComputeZeroVelNDTrajjectory(x0Vect, x1Vect, vmVect, amVect, delta=0.0):
     return curvesnd
 
 
-def ComputeArbitraryVelNDTrajectory(x0Vect, x1Vect, v0Vect, v1Vect, xminVect, xmaxVect, vmVect, amVect, delta=0.0, tryHarder=False):
+def ComputeArbitraryVelNDTrajectory(x0Vect, x1Vect, v0Vect, v1Vect, xminVect, xmaxVect,
+                                    vmVect, amVect, delta=0.0, tryHarder=False):
     ndof = len(x0Vect)
     assert(ndof == len(x1Vect))
     assert(ndof == len(v0Vect))
@@ -80,9 +85,13 @@ def ComputeArbitraryVelNDTrajectory(x0Vect, x1Vect, v0Vect, v1Vect, xminVect, xm
     maxIndex = 0
     for idof in xrange(ndof):
         if delta == 0.0:
-            curve = Compute1DTrajectory(x0Vect[idof], x1Vect[idof], v0Vect[idof], v1Vect[idof], vmVect[idof], amVect[idof])
+            curve = Compute1DTrajectory(x0Vect[idof], x1Vect[idof],
+                                        v0Vect[idof], v1Vect[idof],
+                                        vmVect[idof], amVect[idof])
         else:
-            curve = Compute1DTrajectoryWithDelta(x0Vect[idof], x1Vect[idof], v0Vect[idof], v1Vect[idof], vmVect[idof], amVect[idof], delta)
+            curve = Compute1DTrajectoryWithDelta(x0Vect[idof], x1Vect[idof],
+                                                 v0Vect[idof], v1Vect[idof],
+                                                 vmVect[idof], amVect[idof], delta)
         curves.append(curve)
         if curve.duration > maxDuration:
             maxDuration = curve.duration
@@ -90,16 +99,19 @@ def ComputeArbitraryVelNDTrajectory(x0Vect, x1Vect, v0Vect, v1Vect, xminVect, xm
 
     log.debug("maxIndex = {0}".format(maxIndex))
     if delta == 0.0:
-        stretchedCurves = _RecomputeNDTrajectoryFixedDuration(curves, vmVect, amVect, maxIndex, tryHarder)
+        stretchedCurves = _RecomputeNDTrajectoryFixedDuration(curves, vmVect, amVect,
+                                                              maxIndex, tryHarder)
     else:
-        stretchedCurves = _RecomputeNDTrajectoryFixedDurationWithDelta(curves, vmVect, amVect, maxIndex, delta, tryHarder)
+        stretchedCurves = _RecomputeNDTrajectoryFixedDurationWithDelta(curves, vmVect, amVect,
+                                                                       maxIndex, delta, tryHarder)
 
     if len(stretchedCurves) == 0:
         return ParabolicCurvesND()
     
     newCurves = []
     for (i, curve) in enumerate(stretchedCurves):
-        newCurve = ImposeJointLimitFixedDuration(curve, xminVect[i], xmaxVect[i], vmVect[i], amVect[i], delta=0.0)
+        newCurve = ImposeJointLimitFixedDuration(curve, xminVect[i], xmaxVect[i],
+                                                 vmVect[i], amVect[i], delta=0.0)
         if newCurve.IsEmpty():
             return ParabolicCurvesND()
         newCurves.append(newCurve)
@@ -118,7 +130,9 @@ def _RecomputeNDTrajectoryFixedDuration(curves, vmVect, amVect, maxIndex, tryHar
     isPrevDurationSafe = True
     if (tryHarder):
         for idof in xrange(ndof):
-            tBound = CalculateLeastUpperBoundInoperavtiveTimeInterval(curves[idof].x0, curves[idof].x1, curves[idof].v0, curves[idof].v1, vmVect[idof], amVect[idof])
+            tBound = CalculateLeastUpperBoundInoperavtiveTimeInterval
+            (curves[idof].x0, curves[idof].x1, curves[idof].v0, curves[idof].v1,
+             vmVect[idof], amVect[idof])
             if tBound > newDuration:
                 newDuration = tBound
                 isPrevDurationSafe = False
@@ -139,44 +153,8 @@ def _RecomputeNDTrajectoryFixedDuration(curves, vmVect, amVect, maxIndex, tryHar
     return newCurves
 
 
-def _RecomputeNDTrajectoryFixedDurationWithDelta(curves, vmVect, amVect, maxIndex, delta, tryHarder=False):
-    raise NotImplementedError
-
-
-def _ComputeGrid(curve, delta):
-    """This function compute a grid which devides each ramp of the given curve into
-    intervals of equal duration t, such that t is smallest possible but still greater
-    than delta.
-
-    Grid resolution at each ramp may be different.
-
-    """
-    totalNumGrid = sum([np.floor(r.duration/delta) for r in curve])
-    if totalNumGrid < _defaultGridRes:
-        grids = np.array([])
-        startTime = 0
-        for ramp in curve:
-            n = np.floor(ramp.duration/delta)
-            endTime = startTime + ramp.duration
-            grid = np.linspace(startTime, endTime, num=n, endpoint=False)
-            grids = np.append(grids, grid)
-            startTime = endTime
-        grids = np.append(grids, curve.duration)
-    else:
-        nums = [np.floor(_defaultGridRes*r.duration/curve.duration) for r in curve]
-        grids = np.array([])
-        startTime = 0
-        for (n, ramp) in zip(nums, curve):
-            endTime = startTime + ramp.duration
-            grid = np.linspace(startTime, endTime, num=n, endpoint=False)
-            grids = np.append(grids, grid)
-            startTime = endTime
-        grids = np.append(grids, curve.duration)
-
-    return grids
-
-
-def ComputeNDTrajectoryFixedDuration(x0Vect, x1Vect, v0Vect, v1Vect, duration, xminVect, xmaxVect, vmVect, amVect):
+def ComputeNDTrajectoryFixedDuration(x0Vect, x1Vect, v0Vect, v1Vect, duration,
+                                     xminVect, xmaxVect, vmVect, amVect):
     assert(duration > 0)
 
     ndof = len(x0Vect)
@@ -190,11 +168,14 @@ def ComputeNDTrajectoryFixedDuration(x0Vect, x1Vect, v0Vect, v1Vect, duration, x
 
     curves = []
     for idof in xrange(ndof):
-        curve = Compute1DTrajectoryFixedDuration(x0Vect[idof], x1Vect[idof], v0Vect[idof], v1Vect[idof], duration, vmVect[idof], amVect[idof])
+        curve = Compute1DTrajectoryFixedDuration(x0Vect[idof], x1Vect[idof],
+                                                 v0Vect[idof], v1Vect[idof],
+                                                 duration, vmVect[idof], amVect[idof])
         if curve.IsEmpty():
             return ParabolicCurvesND()
 
-        newCurve = ImposeJointLimitFixedDuration(curve, xminVect[idof], xmaxVect[idof], vmVect[idof], amVect[idof])
+        newCurve = ImposeJointLimitFixedDuration(curve, xminVect[idof], xmaxVect[idof],
+                                                 vmVect[idof], amVect[idof])
         if newCurve.IsEmpty():
             return ParabolicCurvesND()
 
@@ -202,10 +183,6 @@ def ComputeNDTrajectoryFixedDuration(x0Vect, x1Vect, v0Vect, v1Vect, duration, x
 
     # Check before returning
     return ParabolicCurvesND(curves)
-
-
-def ComputeNDTrajectoryFixedDurationWithDelta():
-    raise NotImplementedError
 
 
 #
@@ -380,8 +357,14 @@ def ImposeJointLimitFixedDuration(curve, xmin, xmax, vm, am, delta):
                  format(x0, x1, v0, v1, xmin, xmax, vm, am, duration))
         return ParabolicCurve()
 
-    log.debug("Successfully fixed x-bound violation")
-    return newCurve
+    if CheckParabolicCurve(curve, xmin, xmax, vm, am, x0, x1, v0, v1) == PCR_Normal:
+        log.debug("Successfully fixed x-bound violation")
+        return newCurve
+    else:
+        log.warn("Cannot fix x-bound violation")
+        log.warn("x0 = {0}; x1 = {1}; v0 = {2}; v1 = {3}; xmin = {4}; xmax = {5}; vm = {6}; am = {7}; duration = {8}".\
+                 format(x0, x1, v0, v1, xmin, xmax, vm, am, duration))
+        return ParabolicCurve()
     
                  
 def _Stretch1DTrajectory(curve, vm, am, duration):
@@ -389,26 +372,27 @@ def _Stretch1DTrajectory(curve, vm, am, duration):
 
 
 def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
-    """
-    We want to 'stretch' this velocity profile to have a new duration of endTime. First, try
-    re-interpolating this profile to have two ramps. If that doesn't work, try modifying the
-    profile accordingly.
+    """We want to 'stretch' this velocity profile to have a new duration of
+    endTime. First, try re-interpolating this profile to have two ramps. If that
+    doesn't work, try modifying the profile accordingly.
 
-    Two-ramp case: let t = endTime (the new duration that we want), a0 and a1 the new
-    accelerations of the profile, t0 the duration of the new first ramp.
+    Two-ramp case: let t = endTime (the new duration that we want), a0 and a1
+    the new accelerations of the profile, t0 the duration of the new first ramp.
 
     Starting from
 
        d = (v0*t0 + 0.5*a0*(t0*t0)) + ((v0 + a0*t0)*t1 + 0.5*a1*(t1*t1)),
 
-    where d is the displacement done by this trajectory, t1 = duration - t0, i.e., the
-    duration of the second ramp.  Then we can write a0 and a1 in terms of t0 as
+    where d is the displacement done by this trajectory, t1 = duration - t0,
+    i.e., the duration of the second ramp.  Then we can write a0 and a1 in terms
+    of t0 as
 
        a0 = A + B/t0
        a1 = A - B/t1,
 
-    where A = (v1 - v0)/t and B = (2d/t) - (v0 + v1). We want to get the velocity profile
-    which has minimal acceleration: set the minimization objective to
+    where A = (v1 - v0)/t and B = (2d/t) - (v0 + v1). We want to get the
+    velocity profile which has minimal acceleration: set the minimization
+    objective to
 
        J(t0) = a0*a0 + a1*a1.
 
@@ -423,8 +407,8 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
        -amax - A <= B/t0            ---   I)
        B/t0 >= amax - A.            ---  II)
 
-    Let sum1 = -amax - A and sum2 = amax - A. We can obtain the feasible ranges of t0
-    accordingly.
+    Let sum1 = -amax - A and sum2 = amax - A. We can obtain the feasible ranges
+    of t0 accordingly.
 
     2) Acceleration constraints for the second ramp:
 
@@ -437,10 +421,12 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
 
     As before, the feasible ranges of t0 can be computed accordingly.
 
-    We will obtain an interval iX for each constraint X. Since t0 needs to satisfy all the
-    four constraints plus the initial feasible range [0, endTime], we will obtain only one single
-    feasible range for t0. (Proof sketch: intersection operation is associative and
-    intersection of two intervals gives either an interval or an empty set.)
+    We will obtain an interval iX for each constraint X. Since t0 needs to
+    satisfy all the four constraints plus the initial feasible range [0,
+    endTime], we will obtain only one single feasible range for t0. (Proof
+    sketch: intersection operation is associative and intersection of two
+    intervals gives either an interval or an empty set.)
+
     """
     if (duration < -epsilon):
         return ParabolicCurve()
@@ -486,15 +472,17 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
     A = (v1 - v0)*durInverse
     B = (2*d*durInverse) - (v0 + v1)
 
-    # A velocity profile having t = duration connecting (x0, v0) and (x1, v1) will have one ramp iff
+    # A velocity profile having t = duration connecting (x0, v0) and (x1, v1)
+    # will have one ramp iff    
     #        x1 - x0 = dStraight
     #              d = 0.5*(v0 + v1)*duration
     # The above equation is actually equivalent to
     #              B = 0.
     # Therefore, if B = 0 we can just interpolate the trajectory right away and return early.
     if FuzzyZero(B, epsilon):
-        a = 2*(x1 - x0 - v0*duration)*durInverse*durInverse; # giving priority to displacement and consistency between
-                                                             # acceleration and displacement
+        # giving priority to displacement and consistency between acceleration and
+        # displacement
+        a = 2*(x1 - x0 - v0*duration)*durInverse*durInverse; 
         ramp0 = Ramp(v0, a, duration, x0)
         curve = ParabolicCurve([ramp0])
         # Check before returning
@@ -506,9 +494,10 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
     C = B/sum1
     D = B/sum2
 
-    # Now we need to check a number of feasible intervals of tswitch1 induced by constraints on the
-    # acceleration. Instead of having a class representing an interval, we use the interval bounds
-    # directly. Naming convention: iXl = lower bound of interval X, iXu = upper bound of interval X.
+    # Now we need to check a number of feasible intervals of tswitch1 induced by
+    # constraints on the acceleration. Instead of having a class representing an
+    # interval, we use the interval bounds directly. Naming convention: iXl =
+    # lower bound of interval X, iXu = upper bound of interval X.
     i0l = 0
     i0u = duration
     i1l = -inf
@@ -612,8 +601,9 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
         i4l = max(i0l, i4l)
         i4u = min(i0u, i4u)
 
-    # Now we have already obtained a range of feasible values for t0 (the duration of the first
-    # ramp). We choose a value of t0 by selecting the one which minimize J(t0) := (a0^2 + a1^2).
+    # Now we have already obtained a range of feasible values for t0 (the
+    # duration of the first ramp). We choose a value of t0 by selecting the one
+    # which minimize J(t0) := (a0^2 + a1^2).    
     # Let x = t0 for convenience. We can write J(x) as
     #        J(x) = (A + B/x)^2 + (A - B/(t - x))^2.
     # Then we find x which minimizes J(x) by examining the roots of dJ/dx.
@@ -665,10 +655,10 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
         t0Trimmed = dv2*a0inv  # from vmaxNew = dx0 + a0*t0Trimmed
         t1Trimmed = -dv3*a1inv # from dx1 = vmaxNew + a1*t1Trimmed
 
-        """
-        Idea: we cut the excessive area above the velocity limit and paste that on both sides of
-        the velocity profile. We do not divide the area and paste it equally on both
-        sides. Instead, we try to minimize the sum of the new accelerations squared:
+        """Idea: we cut the excessive area above the velocity limit and paste that on
+        both sides of the velocity profile. We do not divide the area and paste
+        it equally on both sides. Instead, we try to minimize the sum of the new
+        accelerations squared:
 
                minimize    a0New^2 + a1New^2.
 
@@ -692,9 +682,10 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
                minimize(x, y)    x^2 + y^2
                subject to        A2/x + B2/y = C2.
 
-        From the above problem, we can see that the objective function is actually a circle while
-        the constraint function is a hyperbola. (The hyperbola is centered at (A2/C2,
-        B2/C2)). Therefore, the minimizer is the point where both curves touch.
+        From the above problem, we can see that the objective function is
+        actually a circle while the constraint function is a hyperbola. (The
+        hyperbola is centered at (A2/C2, B2/C2)). Therefore, the minimizer is
+        the point where both curves touch.
 
         Let p = (x0, y0) be the point that the two curves touch. Then
 
@@ -703,7 +694,8 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
         i.e., the tangent line of the hyperbola at p and the line connecting the origin and p are
         perpendicular. Solving the above equation gives us
 
-               x0 = (A2 + (A2*B2*B2)^(1/3))/C2.        
+               x0 = (A2 + (A2*B2*B2)^(1/3))/C2.
+
         """
         A2 = dv2*dv2
         B2 = -dv3*dv3
@@ -712,9 +704,9 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
         root = (A2*B2*B2)**(1./3.)
 
         if FuzzyZero(C2, epsilon):
-            # This means the excessive area is too large such that after we paste it on both sides
-            # of the original velocity profile, the whole profile becomes one-ramp with a = 0 and v
-            # = vmNew.
+            # This means the excessive area is too large such that after we
+            # paste it on both sides of the original velocity profile, the whole
+            # profile becomes one-ramp with a = 0 and v = vmNew.
             log.debug("C2 == 0. Unable to fix this case.")
             log.debug("x0 = {0}; x1 = {1}; v0 = {2}; v1 = {3}; vm = {4}; am = {5}; duration = {6}".format(x0, x1, v0, v1, vm, am, duration))
             return ParabolicCurve()
@@ -723,9 +715,10 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
         a0 = (A2 + root)*C2inv
         if abs(a0) > am:
             if FuzzyZero(root, epsilon*epsilon):
-                # The computed a0 is exceeding the bound and its corresponding a1 is
-                # zero. Therefore, we cannot fix this case. This is probably because the given
-                # duration is actually less than the minimum duration that it can get.
+                # The computed a0 is exceeding the bound and its corresponding
+                # a1 is zero. Therefore, we cannot fix this case. This is
+                # probably because the given duration is actually less than the
+                # minimum duration that it can get.
                 log.debug("|a0| > am and a1 == 0: Unable to fix this case since the given duration is too short.")
                 return ParabolicCurve()
 
@@ -860,10 +853,9 @@ def Compute1DTrajectoryFixedDuration(x0, x1, v0, v1, vm, am, duration):
 # Utilities
 #
 def CalculateLeastUpperBoundInoperavtiveTimeInterval(x0, x1, v0, v1, vm, am):
-    """
-    Let t be the total duration of the velocity profile, a0 and a1 be the accelerations of both
-    ramps. We write, in the way that has already been described in SolveMinAccel, a0 and a1 in
-    terms of t0 as
+    """Let t be the total duration of the velocity profile, a0 and a1 be the
+    accelerations of both ramps. We write, in the way that has already been
+    described in SolveMinAccel, a0 and a1 in terms of t0 as
 
            a0 = A + B/t0        and
            a1 = A - B/(t - t0).
@@ -882,8 +874,8 @@ def CalculateLeastUpperBoundInoperavtiveTimeInterval(x0, x1, v0, v1, vm, am):
 
     where sum1 = -am - A, sum2 = am - A.
 
-    From those inequalities, we can deduce that a feasible value of t0 must fall in the
-    intersection of
+    From those inequalities, we can deduce that a feasible value of t0 must fall
+    in the intersection of
 
            [B/sum1, t + B/sum1]    and
            [B/sum2, t + B/sum2].
@@ -893,17 +885,18 @@ def CalculateLeastUpperBoundInoperavtiveTimeInterval(x0, x1, v0, v1, vm, am):
            t >= B*(1/sum2 - 1/sum1)    and
            t >= B*(1/sum1 - 1/sum2).
 
-    By substituting A = (v1 - v0)/t and B = 2*d/t - (v0 + v1) into the above inequalities, we
-    have
+    By substituting A = (v1 - v0)/t and B = 2*d/t - (v0 + v1) into the above
+    inequalities, we have
 
            t >= (2*am*((2*d)/t - (v0 + v1)))/(am*am - ((v1 - v0)/t)**2)    and
            t >= -(2*am*((2*d)/t - (v0 + v1)))/(am*am - ((v1 - v0)/t)**2),
 
-    (the inequalities are derived using Sympy). Finally, we have two solutions (for the total
-    time) from each inequality. Then we select the maximum one.
+    (the inequalities are derived using Sympy). Finally, we have two solutions
+    (for the total time) from each inequality. Then we select the maximum one.
 
-    Important note: position limits are not taken into account here. The calculated upper bound
-    may be invalidated because of position constraints.
+    Important note: position limits are not taken into account here. The
+    calculated upper bound may be invalidated because of position constraints.
+
     """
     d = x1 - x0
 
@@ -937,9 +930,10 @@ def CalculateLeastUpperBoundInoperavtiveTimeInterval(x0, x1, v0, v1, vm, am):
     t = max(T1, T3)
     
     if (t > epsilon):
-        # dStraight is the displacement produced if we were to travel with only one acceleration
-        # from v0 to v1 in t. It is used to determine which direction we should aceelerate
-        # first (posititve or negative acceleration).
+        # dStraight is the displacement produced if we were to travel with only
+        # one acceleration from v0 to v1 in t. It is used to determine which
+        # direction we should aceelerate first (posititve or negative
+        # acceleration).
         dStraight = 0.5*(v0 + v1)*t
         amNew = am if d - dStraight > 0 else -am
         vmNew = vm if d - dStraight > 0 else -vm
@@ -1034,8 +1028,9 @@ def SolveForT0(A, B, t, l, u):
 
 
 def Recompute1DTrajectoryTwoRamps(curve, t0, t1):
-    """Recompute a trajectory interpolating (curve.x0, curve.v0) and (curve.x1, curve.v1) such that the
-    trajectory has two ramps with durations t0 and t1 respectively.
+    """Recompute a trajectory interpolating (curve.x0, curve.v0) and (curve.x1,
+    curve.v1) such that the trajectory has two ramps with durations t0 and t1
+    respectively.
 
     Given t0 and t1, there is a unique solution to this problem.
 
@@ -1062,8 +1057,9 @@ def Recompute1DTrajectoryTwoRamps(curve, t0, t1):
 
 
 def Recompute1DTrajectoryThreeRamps(curve, t0, t1, t2, vm, am):
-    """Recompute a trajectory interpolating (curve.x0, curve.v0) and (curve.x1, curve.v1) such that the
-    trajectory has three ramps with durations t0, t1, and t2 respectively.
+    """Recompute a trajectory interpolating (curve.x0, curve.v0) and (curve.x1,
+    curve.v1) such that the trajectory has three ramps with durations t0, t1,
+    and t2 respectively.
 
     """
     assert(t0 > 0)
@@ -1110,7 +1106,8 @@ def Recompute1DTrajectoryThreeRamps(curve, t0, t1, t2, vm, am):
     kl = max(kl0, kl2)
     ku = min(ku0, ku2)
 
-    # Now we can choose any value k \in [kl, ku]. If there is no other preference, we just randomly choose one.
+    # Now we can choose any value k \in [kl, ku]. If there is no other
+    # preference, we just randomly choose one.
     k = _rng.uniform(kl, ku)
     x = xp + k*xh
 
@@ -1121,7 +1118,128 @@ def Recompute1DTrajectoryThreeRamps(curve, t0, t1, t2, vm, am):
     return ParabolicCurve([ramp0, ramp1, ramp2])
     
     
-####################################################################################################
+################################################################################
+
+#
+# ND Trajectory with minimum-switch-time constraint
+#
+def _RecomputeNDTrajectoryFixedDurationWithDelta(curves, vmVect, amVect, maxIndex, delta):
+    ndof = len(curves)
+    tmax = curves[maxIndex].duration
+
+    grid = _ComputeGrid(curves[maxIndex], delta)
+    PLPFirst = len(grid) > _gridThreshold
+    if PLPFirst:
+        first = SnapToGrid_ThreeRamps
+        second = SnapToGrid_TwoRamps
+    else:
+        first = SnapToGrid_TwoRamps
+        second = SnapToGrid_ThreeRamps
+        
+    newcurves = []
+    for j in xrange(ndof):
+        if j == maxIndex:
+            newcurves.append(curves[j])
+            continue
+
+        newcurve = first(curves[j], vmVect[j], amVect[j], delta, tmax, grid)
+        if len(newcurve) == 0:
+            newcurve = second(curves[j], vmVect[j], amVect[j], delta, tmax, grid)
+            if len(newcurve) == 0:
+                log.debug("DOF {0} is infeasible.".format(j))
+                return ParabolicCurvesND()
+        newcurves.append(newcurve)
+
+    return ParabolicCurvesND(newcurves)        
+
+
+def _ComputeGrid(curve, delta):
+    """This function compute a grid which devides each ramp of the given curve into
+    intervals of equal duration t, such that t is smallest possible but still greater
+    than delta.
+
+    Grid resolution at each ramp may be different.
+
+    """
+    totalNumGrid = sum([np.floor(r.duration/delta) for r in curve])
+    if totalNumGrid < _defaultGridRes:
+        grids = np.array([])
+        startTime = 0
+        for ramp in curve:
+            n = np.floor(ramp.duration/delta)
+            endTime = startTime + ramp.duration
+            grid = np.linspace(startTime, endTime, num=n, endpoint=False)
+            grids = np.append(grids, grid)
+            startTime = endTime
+        grids = np.append(grids, curve.duration)
+    else:
+        nums = [np.floor(_defaultGridRes*r.duration/curve.duration) for r in curve]
+        grids = np.array([])
+        startTime = 0
+        for (n, ramp) in zip(nums, curve):
+            endTime = startTime + ramp.duration
+            grid = np.linspace(startTime, endTime, num=n, endpoint=False)
+            grids = np.append(grids, grid)
+            startTime = endTime
+        grids = np.append(grids, curve.duration)
+
+    return grids
+
+
+def SnapToGrid_TwoRamps(curve, vm, am, delta, tmax, grid):
+    """This function try to generate a two-ramp trajectory which has the switch
+    point lying at one of the grid lines. It iterates through all available grid
+    lines.
+
+    """
+    for g in grid:
+        assert(g > 0)
+        newcurve = Recompute1DTrajectoryTwoRamps(curve, g, tmax - g)
+        if CheckParabolicCurve(curve, xmin, xmax, vm, am, x0, x1, v0, v1) == PCR_Normal:
+            return newcurve
+    return ParabolicCurve()
+
+
+def SnapToGrid_ThreeRamps(curve, vm, am, delta, tmax, grid):
+    """This function try to generate a two-ramp trajectory which has the switch
+    point lying at one of the grid lines.
+
+    Since there are too many possible combinations of the two switch points, it
+    make an initial guess and then try out four possibilities.
+
+    """
+    # Initial guess
+    t0 = tmax * 0.25
+    t1 = tmax * 0.50
+
+    index0 = bisect.bisect_left(grid, t0)
+    # i0 is a list of positions of the first switch point
+    if index0 == 0:
+        i0 = [index0]
+    else:
+        i0 = [index0 - 1, index0]
+
+    index1 = bisect.bisect_left(grid, t1)
+    # i1 is a list of positions of the second switch point
+    if index1 == len(grid):
+        i1 = [index1]
+    else:
+        i1 = [index1 - 1, index1]
+
+    for index0 in i0:
+        for index1 in i1:
+            if index1 <= index0:
+                continue
+            t0New = grid[index0]
+            t1New = grid[index1] - grid[index0]
+            t2New = tmax - grid[index1]
+            newcurve = Recompute1DTrajectoryThreeRamps(curve, t0New, t1New, t2New, vm, am)
+            if CheckParabolicCurve(curve, xmin, xmax, vm, am, x0, x1, v0, v1) == PCR_Normal:
+                return newcurve
+    return ParabolicCurve()
+        
+
+################################################################################
 
 #
 # 1D Trajectory with minimum-switch-time constraint
@@ -1152,7 +1270,8 @@ def _FixSwitchTimeZeroVelPP(curve, delta):
 
 def _FixSwitchTimeZeroVelPLP(curve, vm, am, delta):
     if curve[0].duration >= delta and curve[1].duration >= delta:
-        # Note that we do not have to check the last ramp since it has the same duration as the first ramp
+        # Note that we do not have to check the last ramp since it has
+        # the same duration as the first ramp
         return curve
 
     d = curve.d
