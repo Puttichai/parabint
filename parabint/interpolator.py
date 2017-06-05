@@ -2042,7 +2042,7 @@ def _PLP3(curve, vm, am, delta):
             # Randomly choose vp1 until the value is feasible
             for it in xrange(maxTries):
                 vp1New = _rng.uniform(vp1L, vp1U)
-                vp0New = sumVp - vp1
+                vp0New = sumVp - vp1New
                 if abs(vp1New - vp0New) <= am*delta:
                     passed = True
                     break
@@ -2437,7 +2437,7 @@ def _PLP6(curve, vm, am, delta):
     # B1
     dRemB = d - newFirstRamp.d
     subCurveB1 = _Compute1DTrajectoryWithDelta(0, dRemB, vp, v1, vm, am, delta)
-    if len(subCurveB) == 1:
+    if len(subCurveB1) == 1:
         curveB1 = ParabolicCurve([newFirstRamp, subCurveB1[0]])
     else:
         # len(subCurveB) == 2 in this case
@@ -2446,13 +2446,13 @@ def _PLP6(curve, vm, am, delta):
     # B2
     curveB2 = _PP1(curve, vm, am, delta)
     
-    if curveB2.IsEmpty():
+    if curveB2.IsEmpty() or abs(curveB2[0].v1) > vm:
         curveB = curveB1
     else:
         if curveB1.duration <= curveB2.duration:
             curveB = curveB1
         else:
-            curveB = curevB2
+            curveB = curveB2
 
     # Try case C.
     # C1
@@ -2467,13 +2467,13 @@ def _PLP6(curve, vm, am, delta):
     # C2
     curveC2 = _PP2(curve, vm, am, delta)
     
-    if curveC2.IsEmpty():
+    if curveC2.IsEmpty() or abs(curveC2[0].v1) > vm:
         curveC = curveC1
     else:
         if curveC1.duration <= curveC2.duration:
             curveC = curveC1
         else:
-            curveC = curevC2
+            curveC = curveC2
         
     # Try case D.
     if FuzzyZero(v0 + v1, epsilon):
