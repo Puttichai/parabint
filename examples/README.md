@@ -8,7 +8,7 @@ There are three types of (one-dimensional) trajectories:
 ```python
 from parabint.trajectory import Ramp, ParabolicCurve, ParabolicCurvesND
 
-ramp1 = Ramp(0, 1, 0.5)
+ramp1 = Ramp(0, 1, 0.5) # v0 = 0; a = 1; duration = 0.5; x0 = 0 (optional)
 ramp2 = Ramp(ramp1.v1, -0.7, 0.8)
 curve1 = ParabolicCurve(ramps=[ramp1, ramp2])
 
@@ -33,7 +33,7 @@ delta = 0.5
 
 curve1 = interpolator.Compute1DTrajectory(x0, x1, v0, v1, vm, am) # without minimum-switch-time
 curve2 = interpolator.Compute1DTrajectory(x0, x1, v0, v1, vm, am, delta) # with minimum-switch-time
-
+# Compare the two velocity profiles
 curve1.PlotVel(fignum=1)
 curve2.PlotVel(fignum=1)
 ```
