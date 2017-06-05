@@ -1,4 +1,5 @@
 from parabint import interpolator
+from parabint.trajectory import Ramp, ParabolicCurve, ParabolicCurvesND
 from matplotlib import pyplot as plt
 import random
 rng = random.SystemRandom()
@@ -12,17 +13,11 @@ availableChoices = dict()
 availableChoices[len(availableChoices.keys())] = "PP1  : t0 <  delta; t1 >= delta"
 availableChoices[len(availableChoices.keys())] = "PP2  : t0 >= delta; t1 <  delta"
 availableChoices[len(availableChoices.keys())] = "PP3  : t0 <  delta; t1 <  delta"
+availableChoices[len(availableChoices.keys())] = "stop"
 msg = "Choose a test case"
 for (key, val) in availableChoices.iteritems():
     msg += "\n{0} : {1}".format(key, val)
 msg += "\n\n>> "
-while True:
-    try:
-        index = int(raw_input(msg))
-        if index in availableChoices.keys():
-            break
-    except:
-        pass
 
 def SampleConditions(testcase, delta):
     """This function sample boundary conditions (x0, x1, v0, v1) as well
@@ -65,16 +60,28 @@ def SampleConditions(testcase, delta):
     
     return x0, x1, v0, v1, vm, am
 
-x0, x1, v0, v1, vm, am = SampleConditions(index, delta)
+while True:
+    try:
+        index = int(raw_input(msg))
+        if index in availableChoices.keys():
+            if index == len(availableChoices.keys()) - 1:
+                break
+            x0, x1, v0, v1, vm, am = SampleConditions(index, delta)
 
-curve1 = interpolator.Compute1DTrajectory(x0, x1, v0, v1, vm, am)
-curve2 = interpolator.Compute1DTrajectory(x0, x1, v0, v1, vm, am, delta)
+            curve1 = interpolator.Compute1DTrajectory(x0, x1, v0, v1, vm, am)
+            curve2 = interpolator.Compute1DTrajectory(x0, x1, v0, v1, vm, am, delta)
+            
+            # Visualization
+            plt.clf()
+            curve1.PlotVel(fignum=1, color='r')
+            curve2.PlotVel(fignum=1, color='g')
+            
+            report = \
+            "x0 = {0};\nx1 = {1};\nv0 = {2};\nv1 = {3};\nvm = {4};\nam = {5};\ndelta = {6};\n".\
+            format(x0, x1, v0, v1, vm, am, delta)
+            print report
 
-# Visualization
-plt.clf()
-curve1.PlotVel(fignum=1, color='r')
-curve2.PlotVel(fignum=1, color='g')
+    except ValueError:
+        print "Please enter a valie choice"
 
-report = "x0 = {0};\nx1 = {1};\nv0 = {2};\nv1 = {3};\nvm = {4};\nam = {5};\ndelta = {6};\n".\
-format(x0, x1, v0, v1, vm, am, delta)
-print report
+
