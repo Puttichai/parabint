@@ -1633,9 +1633,22 @@ def _PP3(curve, vm, am, delta):
             curveB = ParabolicCurve()
 
     if not (curveA.IsEmpty() and curveB.IsEmpty()):
-        # We already at least one feasible solution
-        pass
+        # We already have a feasible solution
+        if curveA.IsEmpty():
+            log.debug("PP3 A")
+            return curveB
+        elif curveB.IsEmpty():
+            log.debug("PP3 B")
+            return curveA
+        else:
+            if curveA.duration < curveB.duration:
+                log.debug("PP3 A")
+                return curveA
+            else:
+                log.debug("PP3 B")
+                return curveB
 
+    log.debug("PP3 Flipping")
     # If arrive here, both cases A and B do not produce any feasible solution.
     # First see if the flipped ramps can go with maximum accel/decel
     if FuzzyZero(a0, epsilon):
