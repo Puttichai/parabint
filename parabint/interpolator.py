@@ -242,15 +242,21 @@ def _Compute1DTrajectoryWithoutDelta(x0, x1, v0, v1, vm, am):
         ramp1 = Ramp(ramp0.v1, -a0, (vp - v1)*a0Inv)
         curve = ParabolicCurve([ramp0, ramp1])
     else:
+        ramps = []
         h = abs(vp) - vm
         t = h*abs(a0Inv)
-        ramp0 = Ramp(v0, a0, (vp - v0)*a0Inv - t, x0)
+        if not FuzzyEquals(abs(v0), vm, epsilon):
+            ramp0 = Ramp(v0, a0, (vp - v0)*a0Inv - t, x0)
+            ramps.append(ramp0)
         nom = h*h
         denom = abs(a0)*vm
         newVp = vm if vp > 0 else -vm
         ramp1 = Ramp(newVp, 0.0, 2*t + nom/denom)
-        ramp2 = Ramp(newVp, -10, (vp - v1)*a0Inv - t)
-        curve = ParabolicCurve([ramp0, ramp1, ramp2])
+        ramps.append(ramp1)
+        if not FuzzyEquals(abs(v1), vm, epsilon):
+            ramp2 = Ramp(newVp, -a0, (vp - v1)*a0Inv - t)
+            ramps.append(ramp2)
+        curve = ParabolicCurve(ramps)
 
     # Check before returning
     return curve
@@ -1822,7 +1828,7 @@ def _PLP1(curve, vm, am, delta):
     ramp0A = Ramp(v0, a0New, delta, x0)
     dRem = d - ramp0A.d
     subCurveA = _Compute1DTrajectoryWithDelta(0, dRem, vp, v1, vm, am, delta)
-    assert(not subCurve.IsEmpty()) # this computation should not fail
+    assert(not subCurveA.IsEmpty()) # this computation should not fail
     if len(subCurveA) == 1:
         curveA = ParabolicCurve([ramp0A, subCurveA[0]])
     else:
@@ -1882,7 +1888,7 @@ def _PLP2(curve, vm, am, delta):
     ramp2A = Ramp(vp, a2New, delta)
     dRem = d - ramp2A.d
     subCurveA = _Compute1DTrajectoryWithDelta(0, dRem, v0, vp, vm, am, delta)
-    assert(not subCurve.IsEmpty()) # this computation should not fail
+    assert(not subCurveA.IsEmpty()) # this computation should not fail
     if len(subCurveA) == 1:
         curveA = ParabolicCurve([subCurveA[0], ramp2A])
     else:
@@ -1893,7 +1899,7 @@ def _PLP2(curve, vm, am, delta):
     if FuzzyZero(vp + v1, epsilon):
         curveB = ParabolicCurve()
     else:
-        t1New = 2*d0/(vp + v1)
+        t1New = 2*d1/(vp + v1)
         a1New = (v1 - vp)/t1New
         ramp1B = Ramp(vp, a1New, t1New)
         curveB = ParabolicCurve([firstRamp, ramp1B])
