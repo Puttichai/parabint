@@ -2495,30 +2495,37 @@ def _PLP6(curve, vm, am, delta):
         if (curveA.duration <= curveB.duration) and (curveA.duration <= curveC.duration) and (curveA[1].duration >= delta):
             if curveD.IsEmpty():
                 # Check before returning
+                log.debug("PLP6 A")
                 return curveA
             else:
                 if curveA.duration <= curveD.duration:
                     # Check before returning
+                    log.debug("PLP6 A")
                     return curveA
         
     if (curveB.duration <= curveC.duration):
         if curveD.IsEmpty():
             # Check before returning
+            log.debug("PLP6 B")
             return curveB
         else:
             if curveB.duration <= curveD.duration:
                 # Check before returning
+                log.debug("PLP6 B")
                 return curveB
     else:
         if curveD.IsEmpty():
             # Check before returning
+            log.debug("PLP6 C")
             return curveC
         else:
             if curveC.duration <= curveD.duration:
                 # Check before returning
+                log.debug("PLP6 C")
                 return curveC
 
     # Check before returning
+    log.debug("PLP6 D")
     return curveD
 
 
@@ -2576,22 +2583,47 @@ def _PLP7(curve, vm, am, delta):
     
     # Now compare all cases
     if curveA.IsEmpty() and curveB.IsEmpty() and curveC.IsEmpty():
+        assert False
         newCurve = curveA # empty curve
     elif (not curveA.IsEmpty()) and curveB.IsEmpty() and curveC.IsEmpty():
+        log.debug("PLP7 A")
         newCurve = curveA
     elif curveA.IsEmpty() and (not curveB.IsEmpty()) and curveC.IsEmpty():
+        log.debug("PLP7 B")
         newCurve = curveB
     elif curveA.IsEmpty() and curveB.IsEmpty() and (not curveC.IsEmpty()):
+        log.debug("PLP7 C")
         newCurve = curveC
     elif curveA.IsEmpty():
-        newCurve = curveB if curveB.duration <= curveC.duration else curveC
+        if curveB.duration <= curveC.duration:
+            log.debug("PLP7 B")
+            newCurve = curveB
+        else:
+            log.debug("PLP7 C")
+            newCurve = curveC
     elif curveB.IsEmpty():
-        newCurve = curveA if curveA.duration <= curveC.duration else curveC
+        if curveA.duration <= curveC.duration:
+            log.debug("PLP7 A")
+            newCurve = curveA
+        else:
+            log.debug("PLP7 C")
+            newCurve = curveC
     elif curveC.IsEmpty():
-        newCurve = curveA if curveA.duration <= curveB.duration else curveB
+        if curveA.duration <= curveB.duration:
+            log.debug("PLP7 A")
+            newCurve = curveA
+        else:
+            log.debug("PLP7 B")
+            newCurve = curveB
     else:
         curves = [curveA, curveB, curveC]
         minIndex = min((curve.duration, idx) for (idx, curve) in enumerate(curves))[1]
         newCurve = curves[minIndex]
+        if minIndex == 0:
+            log.debug("PLP7 A")
+        elif minIndex == 1:
+            log.debug("PLP7 B")
+        else:
+            log.debug("PLP7 C")
     # Check before returning
     return newCurve
