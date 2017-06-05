@@ -1966,7 +1966,7 @@ def _PLP3(curve, vm, am, delta):
     t2l_1 = max(delta, (v0 - v1)*amInv)
     t2u_1 = (vm_ - v1)*amInv
     t0l_1 = -k + Sqrt(r2 - (h + t2u_1)**2)
-    t0l_1 = -k + Sqrt(r2 - (h + t2l_1)**2)
+    t0u_1 = -k + Sqrt(r2 - (h + t2l_1)**2)
     if t0l_1 > t0u_1:
         [t0l_1, t0u_1] = Swap(t0u_1, t0l_1)
 
@@ -2010,7 +2010,7 @@ def _PLP3(curve, vm, am, delta):
         curveB2 = ParabolicCurve([firstRamp, subCurveB2[0]])
     else:
         # len(subCurveB2) == 2 in this case
-        curveB2 = ParabolicCurve([firstRamp, subCurveB1[0], subCurveB1[1]])
+        curveB2 = ParabolicCurve([firstRamp, subCurveB2[0], subCurveB2[1]])
 
     if curveB1.duration <= curveB2.duration:
         curveB = curveB1
@@ -2054,28 +2054,28 @@ def _PLP3(curve, vm, am, delta):
         if not curveB.IsEmpty():
             if curveB.duration <= curveC.duration:
                 # Check before returning
-                return CurveB
+                return curveB
             else:
                 # Check before returning
-                return CurveC
+                return curveC
         else:
             # Check before returning
-            return CurveC
+            return curveC
 
     if curveA.IsEmpty():
         # Check before returning
-        return CurveB
+        return curveB
     else:
         if curveB.IsEmpty():
             # Check before returning
-            return CurveA
+            return curveA
         else:
             if curveB.duration <= curveA.duration:
                 # Check before returning
-                return CurveB
+                return curveB
             else:
                 # Check before returning
-                return CurveA
+                return curveA
             
             
 def _PLP4(curve, vm, am, delta):
