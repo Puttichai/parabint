@@ -1847,15 +1847,19 @@ def _PLP1(curve, vm, am, delta):
     assert(not (curveA.IsEmpty() and curveB.IsEmpty()))
     if curveA.IsEmpty():
         # Check before returning
+        log.debug("PLP1 B")
         return curveB
     elif curveB.IsEmpty():
         # Check before returning
+        log.debug("PLP1 A")
         return curveA
     elif curveA.duration < curveB.duration:
         # Check before returning
+        log.debug("PLP1 A")
         return curveA
     else:
         # Check before returning
+        log.debug("PLP1 B")
         return curveB
     
 
@@ -1907,15 +1911,19 @@ def _PLP2(curve, vm, am, delta):
     assert(not (curveA.IsEmpty() and curveB.IsEmpty()))
     if curveA.IsEmpty():
         # Check before returning
+        log.debug("PLP2 B")
         return curveB
     elif curveB.IsEmpty():
         # Check before returning
+        log.debug("PLP2 A")
         return curveA
     elif curveA.duration < curveB.duration:
         # Check before returning
+        log.debug("PLP2 A")
         return curveA
     else:
         # Check before returning
+        log.debug("PLP2 B")
         return curveB
 
 
@@ -2054,27 +2062,34 @@ def _PLP3(curve, vm, am, delta):
         if not curveB.IsEmpty():
             if curveB.duration <= curveC.duration:
                 # Check before returning
+                log.debug("PLP3 B")
                 return curveB
             else:
                 # Check before returning
+                log.debug("PLP3 C")
                 return curveC
         else:
             # Check before returning
+            log.debug("PLP3 C")
             return curveC
 
     if curveA.IsEmpty():
         # Check before returning
+        log.debug("PLP3 B")
         return curveB
     else:
         if curveB.IsEmpty():
             # Check before returning
+            log.debug("PLP3 A")
             return curveA
         else:
             if curveB.duration <= curveA.duration:
                 # Check before returning
+                log.debug("PLP3 B")
                 return curveB
             else:
                 # Check before returning
+                log.debug("PLP3 A")
                 return curveA
             
             
@@ -2105,7 +2120,7 @@ def _PLP4(curve, vm, am, delta):
     ramp0A = Ramp(v0, a0New, delta, x0)
     dRem = d - ramp0A.d
     subCurveA = _Compute1DTrajectoryWithDelta(0, dRem, vp, v1, vm, am, delta)
-    assert(not subCurve.IsEmpty()) # this computation should not fail
+    assert(not subCurveA.IsEmpty()) # this computation should not fail
     if len(subCurveA) == 1:
         curveA = ParabolicCurve([ramp0A, subCurveA[0]])
     else:
@@ -2133,80 +2148,98 @@ def _PLP4(curve, vm, am, delta):
     a2 = lastRamp.a
     k = a2*delta
     vpNew = 0.5*(k - np.sign(a2)*np.sqrt(k**2 + 4*(k*v0 + v1**2) - 8*a2*d))
-    t1New = (v1 - vpNew)/a2 # a2 is not zero
-    if (t1New >= delta):
-        # PP1A: no further correction is needed.
-        a0New = (vpNew - v0)*deltaInv
-        ramp0C_A = Ramp(v0, a0New, delta, x0)
-        ramp1C_A = Ramp(vpNew, a2, t1New)
-        curveC_A = ParabolicCurve([ramp0C_A, ramp1C_A])
+    if abs(vpNew) > vm + epsilon:
+        curveC = ParabolicCurve()
     else:
-        # Try case PP1B.
-        vpNew = d*deltaInv - 0.5*(v0 + v1)
-        a0New = (vpNew - v0)*deltaInv
-        a1New = (v1 - vpNew)*deltaInv
-
-        if (abs(a0New) <= am + epsilon) and (abs(a1New) <= am + epsilon) and (abs(vpNew) <= vm + epsilon):
-            ramp0C_B = Ramp(v0, a0New, delta, x0)
-            ramp1C_B = Ramp(vpNew, a1New, delta)
-            curveC_B = ParabolicCurve([ramp0C_B, ramp1C_B])
+        t1New = (v1 - vpNew)/a2 # a2 is not zero
+        if (t1New >= delta):
+            # PP1A: no further correction is needed.
+            a0New = (vpNew - v0)*deltaInv
+            ramp0C_A = Ramp(v0, a0New, delta, x0)
+            ramp1C_A = Ramp(vpNew, a2, t1New)
+            curveC_A = ParabolicCurve([ramp0C_A, ramp1C_A])
+            curveC = curveC_A
         else:
-            # Case PP2B does not produce any feasible solution
-            curveC_B = ParabolicCurve()
+            # Try case PP1B.
+            vpNew = d*deltaInv - 0.5*(v0 + v1)
+            a0New = (vpNew - v0)*deltaInv
+            a1New = (v1 - vpNew)*deltaInv
 
-        # Try case PP1C.
-        if FuzzyZero(v0 + v1, epsilon):
-            # Case C does not produce any feasible solution
-            curveC_C = ParabolicCurve()
-        else:
-            tNew = 2*d/(v0 + v1)
-            aNew = (v1 - v0)/tNew
-            if (abs(aNew) <= am + epsilon) and (tNew >= delta):
-                ramp0C_C = Ramp(v0, aNew, tNew, x0)
-                curveC_C = ParabolicCurve([ramp0C])
+            if (abs(a0New) <= am + epsilon) and (abs(a1New) <= am + epsilon) and (abs(vpNew) <= vm + epsilon):
+                ramp0C_B = Ramp(v0, a0New, delta, x0)
+                ramp1C_B = Ramp(vpNew, a1New, delta)
+                curveC_B = ParabolicCurve([ramp0C_B, ramp1C_B])
             else:
+                # Case PP2B does not produce any feasible solution
+                curveC_B = ParabolicCurve()
+
+            # Try case PP1C.
+            if FuzzyZero(v0 + v1, epsilon):
                 # Case C does not produce any feasible solution
                 curveC_C = ParabolicCurve()
+            else:
+                tNew = 2*d/(v0 + v1)
+                aNew = (v1 - v0)/tNew
+                if (abs(aNew) <= am + epsilon) and (tNew >= delta):
+                    ramp0C_C = Ramp(v0, aNew, tNew, x0)
+                    curveC_C = ParabolicCurve([ramp0C])
+                else:
+                    # Case C does not produce any feasible solution
+                    curveC_C = ParabolicCurve()
 
-    if curveC_A.IsEmpty() and curveC_B.IsEmpty() and curveC_C.IsEmpty():
-        curveC = curveC_A # empty curve
-    elif (not curveC_A.IsEmpty()) and curveC_B.IsEmpty() and curveC_C.IsEmpty():
-        curveC = curveC_A
-    elif curveC_A.IsEmpty() and (not curveC_B.IsEmpty()) and curveC_C.IsEmpty():
-        curveC = curveC_B
-    elif curveC_A.IsEmpty() and curveC_B.IsEmpty() and (not curveC_C.IsEmpty()):
-        curveC = curveC_C
-    elif curveC_A.IsEmpty():
-        curveC = curveC_B if curveC_B.duration <= curveC_C.duration else curveC_C
-    elif curveC_B.IsEmpty():
-        curveC = curveC_A if curveC_A.duration <= curveC_C.duration else curveC_C
-    elif curveC_C.IsEmpty():
-        curveC = curveC_A if curveC_A.duration <= curveC_B.duration else curveC_B
-    else:
-        curves = [curveC_A, curveC_B, curveC_C]
-        minIndex = min((curve.duration, idx) for (idx, curve) in enumerate(curves))[1]
-        curveC = curves[minIndex]
+            assert (curveC_B.IsEmpty() and curveC_C.IsEmpty())
+            if curveC_B.IsEmpty():
+                curveC = curveC_C
+            elif curveC_C.IsEmpty():
+                curveC = curveC_B
+            else:
+                curveC = curveC_B if curveC_B.duration < curveC_C.duration else curveC_C
 
     # Now compare PLP1A, PLP1B, and PLP1C
     if curveA.IsEmpty() and curveB.IsEmpty() and curveC.IsEmpty():
+        assert False
         newCurve = curveA # empty curve
     elif (not curveA.IsEmpty()) and curveB.IsEmpty() and curveC.IsEmpty():
+        log.debug("PLP4 A")
         newCurve = curveA
     elif curveA.IsEmpty() and (not curveB.IsEmpty()) and curveC.IsEmpty():
+        log.debug("PLP4 B")
         newCurve = curveB
     elif curveA.IsEmpty() and curveB.IsEmpty() and (not curveC.IsEmpty()):
+        log.debug("PLP4 C")
         newCurve = curveC
     elif curveA.IsEmpty():
-        newCurve = curveB if curveB.duration <= curveC.duration else curveC
+        if curveB.duration <= curveC.duration:
+            log.debug("PLP4 B")
+            newCurve = curveB
+        else:
+            log.debug("PLP4 C")
+            newCurve = curveC
     elif curveB.IsEmpty():
-        newCurve = curveA if curveA.duration <= curveC.duration else curveC
+        if curveA.duration <= curveC.duration:
+            log.debug("PLP4 A")
+            newCurve = curveA
+        else:
+            log.debug("PLP4 C")
+            newCurve = curveC
     elif curveC.IsEmpty():
-        newCurve = curveA if curveA.duration <= curveB.duration else curveB
+        if curveA.duration <= curveB.duration:
+            log.debug("PLP4 A")
+            newCurve = curveA
+        else:
+            log.debug("PLP4 B")
+            newCurve = curveB
     else:
         curves = [curveA, curveB, curveC]
         minIndex = min((curve.duration, idx) for (idx, curve) in enumerate(curves))[1]
         newCurve = curves[minIndex]
-    # Check before returning
+        if minIndex == 0:
+            log.debug("PLP4 A")
+        elif minIndex == 1:
+            log.debug("PLP4 B")
+        else:
+            log.debug("PLP4 C")
+            
     return newCurve
     
 
@@ -2237,7 +2270,7 @@ def _PLP5(curve, vm, am, delta):
     ramp2A = Ramp(vp, a2New, delta)
     dRem = d - ramp2A.d
     subCurveA = _Compute1DTrajectoryWithDelta(0, dRem, v0, vp, vm, am, delta)
-    assert(not subCurve.IsEmpty()) # this computation should not fail
+    assert(not subCurveA.IsEmpty()) # this computation should not fail
     if len(subCurveA) == 1:
         curveA = ParabolicCurve([subCurveA[0], ramp2A])
     else:
@@ -2251,10 +2284,10 @@ def _PLP5(curve, vm, am, delta):
         passed = False
         t1New = 2*d1/(vp + v1)
         if (t1New >= delta):
-            a0New = (v1 - vp)/t1New
-            if abs(a0New) <= am + epsilon:
-                ramp0B = Ramp(v0, a0New, t0New, x0)
-                curveB = ParabolicCurve([ramp0B, lastRamp])
+            a1New = (v1 - vp)/t1New
+            if abs(a1New) <= am + epsilon:
+                ramp1B = Ramp(vp, a1New, t1New)
+                curveB = ParabolicCurve([firstRamp, ramp1B])
         if not passed:
             curveB = ParabolicCurve()
 
@@ -2264,80 +2297,98 @@ def _PLP5(curve, vm, am, delta):
     a0 = lastRamp.a
     k = a0*delta
     vpNew = 0.5*(k - np.sign(a0)*np.sqrt(k**2 + 4*(k*v0 + v1**2) - 8*a0*d))
-    t0New = (vpNew - v0)/a0 # a0 is not zero
-    if (t0New >= delta):
-        # PP2A: no further correction is needed.
-        a1New = (v1 - vpNew)*deltaInv
-        ramp0C_A = Ramp(v0, a0, t0New, x0)
-        ramp1C_A = Ramp(vpNew, a1New, delta)
-        curveC_A = ParabolicCurve([ramp0C_A, ramp1C_A])
+    if abs(vpNew) > vm + epsilon:
+        curveC = ParabolicCurve()
     else:
-        # Try case PP1B.
-        vpNew = d*deltaInv - 0.5*(v0 + v1)
-        a0New = (vpNew - v0)*deltaInv
-        a1New = (v1 - vpNew)*deltaInv
-
-        if (abs(a0New) <= am + epsilon) and (abs(a1New) <= am + epsilon) and (abs(vpNew) <= vm + epsilon):
-            ramp0C_B = Ramp(v0, a0New, delta, x0)
-            ramp1C_B = Ramp(vpNew, a1New, delta)
-            curveC_B = ParabolicCurve([ramp0C_B, ramp1C_B])
+        t0New = (vpNew - v0)/a0 # a0 is not zero
+        if (t0New >= delta):
+            # PP2A: no further correction is needed.
+            a1New = (v1 - vpNew)*deltaInv
+            ramp0C_A = Ramp(v0, a0, t0New, x0)
+            ramp1C_A = Ramp(vpNew, a1New, delta)
+            curveC_A = ParabolicCurve([ramp0C_A, ramp1C_A])
+            curveC = curveC_A
         else:
-            # Case PP2B does not produce any feasible solution
-            curveC_B = ParabolicCurve()
+            # Try case PP1B.
+            vpNew = d*deltaInv - 0.5*(v0 + v1)
+            a0New = (vpNew - v0)*deltaInv
+            a1New = (v1 - vpNew)*deltaInv
 
-        # Try case PP1C.
-        if FuzzyZero(v0 + v1, epsilon):
-            # Case C does not produce any feasible solution
-            curveC_C = ParabolicCurve()
-        else:
-            tNew = 2*d/(v0 + v1)
-            aNew = (v1 - v0)/tNew
-            if (abs(aNew) <= am + epsilon) and (tNew >= delta):
-                ramp0C_C = Ramp(v0, aNew, tNew, x0)
-                curveC_C = ParabolicCurve([ramp0C])
+            if (abs(a0New) <= am + epsilon) and (abs(a1New) <= am + epsilon) and (abs(vpNew) <= vm + epsilon):
+                ramp0C_B = Ramp(v0, a0New, delta, x0)
+                ramp1C_B = Ramp(vpNew, a1New, delta)
+                curveC_B = ParabolicCurve([ramp0C_B, ramp1C_B])
             else:
+                # Case PP2B does not produce any feasible solution
+                curveC_B = ParabolicCurve()
+
+            # Try case PP1C.
+            if FuzzyZero(v0 + v1, epsilon):
                 # Case C does not produce any feasible solution
                 curveC_C = ParabolicCurve()
+            else:
+                tNew = 2*d/(v0 + v1)
+                aNew = (v1 - v0)/tNew
+                if (abs(aNew) <= am + epsilon) and (tNew >= delta):
+                    ramp0C_C = Ramp(v0, aNew, tNew, x0)
+                    curveC_C = ParabolicCurve([ramp0C])
+                else:
+                    # Case C does not produce any feasible solution
+                    curveC_C = ParabolicCurve()
 
-    if curveC_A.IsEmpty() and curveC_B.IsEmpty() and curveC_C.IsEmpty():
-        curveC = curveC_A # empty curve
-    elif (not curveC_A.IsEmpty()) and curveC_B.IsEmpty() and curveC_C.IsEmpty():
-        curveC = curveC_A
-    elif curveC_A.IsEmpty() and (not curveC_B.IsEmpty()) and curveC_C.IsEmpty():
-        curveC = curveC_B
-    elif curveC_A.IsEmpty() and curveC_B.IsEmpty() and (not curveC_C.IsEmpty()):
-        curveC = curveC_C
-    elif curveC_A.IsEmpty():
-        curveC = curveC_B if curveC_B.duration <= curveC_C.duration else curveC_C
-    elif curveC_B.IsEmpty():
-        curveC = curveC_A if curveC_A.duration <= curveC_C.duration else curveC_C
-    elif curveC_C.IsEmpty():
-        curveC = curveC_A if curveC_A.duration <= curveC_B.duration else curveC_B
-    else:
-        curves = [curveC_A, curveC_B, curveC_C]
-        minIndex = min((curve.duration, idx) for (idx, curve) in enumerate(curves))[1]
-        curveC = curves[minIndex]
-
+            assert (curveC_B.IsEmpty() and curveC_C.IsEmpty())
+            if curveC_B.IsEmpty():
+                curveC = curveC_C
+            elif curveC_C.IsEmpty():
+                curveC = curveC_B
+            else:
+                curveC = curveC_B if curveC_B.duration < curveC_C.duration else curveC_C
+                
     # Now compare PLP1A, PLP1B, and PLP1C
     if curveA.IsEmpty() and curveB.IsEmpty() and curveC.IsEmpty():
+        assert False
         newCurve = curveA # empty curve
     elif (not curveA.IsEmpty()) and curveB.IsEmpty() and curveC.IsEmpty():
+        log.debug("PLP5 A")
         newCurve = curveA
     elif curveA.IsEmpty() and (not curveB.IsEmpty()) and curveC.IsEmpty():
+        log.debug("PLP5 B")
         newCurve = curveB
     elif curveA.IsEmpty() and curveB.IsEmpty() and (not curveC.IsEmpty()):
+        log.debug("PLP5 C")
         newCurve = curveC
     elif curveA.IsEmpty():
-        newCurve = curveB if curveB.duration <= curveC.duration else curveC
+        if curveB.duration <= curveC.duration:
+            log.debug("PLP5 B")
+            newCurve = curveB
+        else:
+            log.debug("PLP5 C")
+            newCurve = curveC
     elif curveB.IsEmpty():
-        newCurve = curveA if curveA.duration <= curveC.duration else curveC
+        if curveA.duration <= curveC.duration:
+            log.debug("PLP5 A")
+            newCurve = curveA
+        else:
+            log.debug("PLP5 C")
+            newCurve = curveC
     elif curveC.IsEmpty():
-        newCurve = curveA if curveA.duration <= curveB.duration else curveB
+        if curveA.duration <= curveB.duration:
+            log.debug("PLP5 A")
+            newCurve = curveA
+        else:
+            log.debug("PLP5 B")
+            newCurve = curveB
     else:
         curves = [curveA, curveB, curveC]
         minIndex = min((curve.duration, idx) for (idx, curve) in enumerate(curves))[1]
         newCurve = curves[minIndex]
-    # Check before returning
+        if minIndex == 0:
+            log.debug("PLP5 A")
+        elif minIndex == 1:
+            log.debug("PLP5 B")
+        else:
+            log.debug("PLP5 C")
+            
     return newCurve
 
 
